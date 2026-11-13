@@ -1,5 +1,6 @@
 using System.IO;
 using System.Reflection;
+using LastWave.Base;
 using LastWave.Config;
 using LastWave.Enemies;
 using LastWave.Network;
@@ -181,6 +182,7 @@ namespace LastWave.EditorTools
             movementSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<PlayerHealth>();
+            player.AddComponent<PlayerRepair>();
 
             var shooting = player.AddComponent<PlayerShooting>();
             var shootingSerialized = new SerializedObject(shooting);
@@ -277,13 +279,18 @@ namespace LastWave.EditorTools
 
             if (enemyPrefab != null)
             {
-                // Story 004 turns this marker into the base with health and repair.
+                // The base: BaseHealth (scene object, no NetworkObject) owns its health, look and bar (story 004).
                 var baseMarker = new GameObject("Base");
                 baseMarker.transform.position = Vector3.zero; // map centre
                 baseMarker.transform.localScale = new Vector3(BaseVisualSize, BaseVisualSize, 1f);
                 var baseRenderer = baseMarker.AddComponent<SpriteRenderer>(); // sprite and colour are set by WaveManager at start
                 baseRenderer.sharedMaterial = material;
                 baseRenderer.sortingOrder = -1; // under players and enemies
+
+                var baseHealth = baseMarker.AddComponent<BaseHealth>();
+                var baseSerialized = new SerializedObject(baseHealth);
+                baseSerialized.FindProperty("_renderer").objectReferenceValue = baseRenderer;
+                baseSerialized.ApplyModifiedPropertiesWithoutUndo();
 
                 var waves = new GameObject("WaveManager").AddComponent<WaveManager>();
                 var wavesSerialized = new SerializedObject(waves);

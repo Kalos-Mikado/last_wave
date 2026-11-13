@@ -92,5 +92,15 @@ MonoBehaviour:
     Health: 50
     Edges: 15
     SpawnInterval: 0.4
+  BaseMaxHealth: 500
+  EnemyBaseDamage: 5
+  EnemyBaseHitInterval: 1.5
+  RepairPerSecond: 15
+  RepairRange: 3
+  RepairKey: 19
+  BaseDamagedColor: {r: 0.3, g: 0.08, b: 0.22, a: 1}
+  BaseBarSize: {x: 160, y: 12}
+  BaseBarOffsetY: 1.2
+  BaseBarFillColor: {r: 0.35, g: 0.65, b: 1, a: 1}
   MenuSceneName: Menu
   GameSceneName: Game

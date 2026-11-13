@@ -19,6 +19,7 @@ namespace LastWave.Player
         [SerializeField] private Bullet _bulletPrefab;
 
         private PlayerMovement _movement;
+        private PlayerRepair _repair;
         private float _nextLocalShotTime;
         private float _nextServerShotTime;
 
@@ -26,6 +27,7 @@ namespace LastWave.Player
         public override void OnNetworkSpawn()
         {
             _movement = GetComponent<PlayerMovement>();
+            _repair = GetComponent<PlayerRepair>();
         }
 
         private void Update()
@@ -37,6 +39,7 @@ namespace LastWave.Player
             var config = GameConfig.Instance;
             // Players also walk around in the Menu scene (story 001); do not shoot there (menu clicks).
             if (SceneManager.GetActiveScene().name != config.GameSceneName) return;
+            if (_repair != null && _repair.IsRepairingLocal) return; // repairing the base: no shooting (story 004)
             if (Time.time < _nextLocalShotTime) return;
 
             _nextLocalShotTime = Time.time + config.FireInterval;
@@ -53,6 +56,8 @@ namespace LastWave.Player
         {
             float sqrLength = direction.sqrMagnitude;
             if (!(sqrLength > Mathf.Epsilon) || float.IsInfinity(sqrLength)) return; // zero, NaN or infinite
+
+            if (_repair != null && _repair.IsRepairingOnServer) return; // the server refuses shots while repairing (story 004)
 
             var config = GameConfig.Instance;
             float now = Time.time;

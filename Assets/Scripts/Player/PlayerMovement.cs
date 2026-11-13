@@ -26,6 +26,7 @@ namespace LastWave.Player
 
         private GameConfig _config;
         private Rigidbody2D _body;
+        private PlayerRepair _repair;
 
         /// <summary>1 x 1 world unit white square sprite shared by players, aim markers and bullets.</summary>
         internal static Sprite SquareSprite
@@ -53,6 +54,7 @@ namespace LastWave.Player
         {
             _config = GameConfig.Instance;
             _body = GetComponent<Rigidbody2D>();
+            _repair = GetComponent<PlayerRepair>();
 
             var spriteRenderer = GetComponent<SpriteRenderer>();
             spriteRenderer.sprite = SquareSprite;
@@ -87,6 +89,8 @@ namespace LastWave.Player
                     (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
                     (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
             }
+            // Repairing the base (story 004) means standing still.
+            if (_repair != null && _repair.IsRepairingLocal) direction = Vector2.zero;
             _body.linearVelocity = direction.normalized * _config.MoveSpeed;
         }
 

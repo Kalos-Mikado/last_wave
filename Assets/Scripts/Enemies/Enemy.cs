@@ -1,4 +1,5 @@
 using System;
+using LastWave.Base;
 using LastWave.Config;
 using LastWave.Player;
 using Unity.Netcode;
@@ -9,7 +10,7 @@ namespace LastWave.Enemies
     /// <summary>
     /// A wave enemy. Spawn, movement, health and death all happen on the server; a server-authority
     /// NetworkTransform shows the same walk on every machine. The enemy walks towards a target point
-    /// (the base marker for now) and stays there. It damages nothing in story 003.
+    /// (the base) and stays there, hitting the base on a timer (story 004).
     /// Health is a server-only value: clients never need it, they just see the enemy vanish on death.
     /// </summary>
     /// <example>
@@ -29,6 +30,9 @@ namespace LastWave.Enemies
         private int _health; // server only
         private float _stopDistance;
         private Rigidbody2D _body;
+        private BaseHealth _base;
+        private bool _wasAtBase;
+        private float _nextHitTime;
 
         /// <summary>Health left on the server; 0 on a client (not synchronised on purpose).</summary>
         public int Health => _health;
@@ -55,6 +59,7 @@ namespace LastWave.Enemies
         {
             if (!IsServer) return;
             _target = target;
+            _base = target != null ? target.GetComponent<BaseHealth>() : null; // null: walks there but hits nothing
             _speed = speed;
             _health = health;
             _stopDistance = GameConfig.Instance.EnemyStopDistance;
@@ -86,9 +91,34 @@ namespace LastWave.Enemies
             if (!IsServer || !IsSpawned || _target == null) return;
 
             Vector2 toTarget = (Vector2)_target.position - _body.position;
+            bool atTarget = toTarget.magnitude <= _stopDistance;
             // Stay put once close enough; otherwise walk straight at the target. Never overshoots: the stop
             // distance is far larger than one frame of walking.
-            _body.linearVelocity = toTarget.magnitude <= _stopDistance ? Vector2.zero : toTarget.normalized * _speed;
+            _body.linearVelocity = atTarget ? Vector2.zero : toTarget.normalized * _speed;
+
+            HitBase(atTarget);
+        }
+
+        // Story 004: an enemy standing at the base hits it once per hit interval (its own timer).
+        // The first hit comes one interval after arriving. Nothing happens once the base is destroyed.
+        private void HitBase(bool atTarget)
+        {
+            if (_base == null || _base.IsDestroyed || !atTarget)
+            {
+                _wasAtBase = false; // pushed away: the timer restarts on the next arrival
+                return;
+            }
+
+            var config = GameConfig.Instance;
+            if (!_wasAtBase)
+            {
+                _wasAtBase = true;
+                _nextHitTime = Time.time + config.EnemyBaseHitInterval;
+            }
+            if (Time.time < _nextHitTime) return;
+
+            _base.TakeDamage(config.EnemyBaseDamage);
+            _nextHitTime = Time.time + config.EnemyBaseHitInterval;
         }
     }
 }

@@ -168,6 +168,40 @@ namespace LastWave.Config
             new WaveDefinition { Count = 36, Speed = 3.1f, Health = 50, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.4f },
         };
 
+        // ---- Story 004: base health and repair ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // All numbers are first guesses for the designer to tune (brief gives none).
+
+        /// <summary>Base health at the start (whole points).</summary>
+        [Min(1)] public int BaseMaxHealth = 500;
+
+        /// <summary>Damage one enemy deals to the base per hit (whole points).</summary>
+        [Min(0)] public int EnemyBaseDamage = 5;
+
+        /// <summary>Seconds between two hits from the same enemy while it stands at the base. The first hit comes this long after it arrives.</summary>
+        [Min(0.05f)] public float EnemyBaseHitInterval = 1.5f;
+
+        /// <summary>Base health restored per second to each player who is repairing (server applies it).</summary>
+        [Min(0f)] public float RepairPerSecond = 15f;
+
+        /// <summary>A player must be within this distance of the base centre to repair it, in world units.</summary>
+        [Min(0f)] public float RepairRange = 3f;
+
+        /// <summary>Key the player holds to repair the base.</summary>
+        public UnityEngine.InputSystem.Key RepairKey = UnityEngine.InputSystem.Key.E;
+
+        /// <summary>Base colour at 0 health. The base blends from <see cref="BaseColor"/> (full health) to this as health drops: darker, red-tinted blue.</summary>
+        public Color BaseDamagedColor = new Color(0.30f, 0.08f, 0.22f);
+
+        /// <summary>Base health bar size in screen pixels (width, height).</summary>
+        public Vector2 BaseBarSize = new Vector2(160f, 12f);
+
+        /// <summary>How far above the base centre the bar sits, in world units.</summary>
+        public float BaseBarOffsetY = 1.2f;
+
+        /// <summary>Base health bar fill colour.</summary>
+        public Color BaseBarFillColor = new Color(0.35f, 0.65f, 1f);
+
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";
 
