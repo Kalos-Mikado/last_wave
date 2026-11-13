@@ -20,5 +20,19 @@ MonoBehaviour:
   - {r: 1, g: 0.85, b: 0.2, a: 1}
   - {r: 0.7, g: 0.4, b: 1, a: 1}
   - {r: 1, g: 0.55, b: 0.15, a: 1}
+  MaxPlayerHealth: 100
+  FireInterval: 0.25
+  FireIntervalTolerance: 0.5
+  BulletSpeed: 14
+  BulletDamage: 10
+  BulletLifetime: 1.5
+  BulletSpawnOffset: 0.7
+  BulletColor: {r: 1, g: 1, b: 1, a: 1}
+  AimMarkerColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
+  HealthBarSize: {x: 60, y: 8}
+  HealthBarOffsetY: 0.9
+  HealthBarFillColor: {r: 0.25, g: 0.9, b: 0.3, a: 1}
+  HealthBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
+  DebugDamageKey: 25
   MenuSceneName: Menu
   GameSceneName: Game

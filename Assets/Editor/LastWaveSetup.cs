@@ -29,6 +29,11 @@ namespace LastWave.EditorTools
         private const string ConfigPath = "Assets/Resources/GameConfig.asset";
         private const string MaterialPath = "Assets/Materials/PlayerUnlit.mat";
         private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
+        private const string BulletPrefabPath = "Assets/Prefabs/Bullet.prefab";
+        private const string DefaultPrefabListPath = "Assets/DefaultNetworkPrefabs.asset"; // created by Netcode's importer
+        private const float BulletVisualSize = 0.25f; // world units; asset construction, not gameplay tuning
+        private const float AimMarkerOffsetX = 0.5f;
+        private static readonly Vector2 AimMarkerSize = new Vector2(0.4f, 0.2f);
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -45,8 +50,10 @@ namespace LastWave.EditorTools
 
             var config = LoadOrCreateConfig();
             var material = LoadOrCreateMaterial();
-            var playerPrefab = BuildPlayerPrefab(material);
-            var networkManagerPrefab = BuildNetworkManagerPrefab(playerPrefab);
+            var bulletPrefab = BuildBulletPrefab(material);
+            var prefabList = RegisterNetworkPrefab(bulletPrefab);
+            var playerPrefab = BuildPlayerPrefab(material, bulletPrefab);
+            var networkManagerPrefab = BuildNetworkManagerPrefab(playerPrefab, prefabList);
 
             var menuPath = BuildScene(config.MenuSceneName, networkManagerPrefab);
             var gamePath = BuildScene(config.GameSceneName, networkManagerPrefab);
@@ -57,15 +64,21 @@ namespace LastWave.EditorTools
             };
 
             AssetDatabase.SaveAssets();
-            AssertPlayerPrefabHash();
-            Debug.Log($"LastWaveSetup: built {PlayerPrefabPath}, {NetworkManagerPrefabPath}, {menuPath}, {gamePath}.");
+            AssertPrefabHash(PlayerPrefabPath);
+            AssertPrefabHash(BulletPrefabPath);
+            Debug.Log($"LastWaveSetup: built {BulletPrefabPath}, {PlayerPrefabPath}, {NetworkManagerPrefabPath}, {menuPath}, {gamePath}.");
         }
 
         private static GameConfig LoadOrCreateConfig()
         {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
-            if (config != null) return config;
-            config = ScriptableObject.CreateInstance<GameConfig>();
+            if (config != null)
+            {
+                // An asset saved before new fields existed loads them from the C# defaults; write them back.
+                EditorUtility.SetDirty(config);
+                return config;
+            }
+            config =ScriptableObject.CreateInstance<GameConfig>();
             AssetDatabase.CreateAsset(config, ConfigPath);
             return config;
         }
@@ -81,21 +94,76 @@ namespace LastWave.EditorTools
             return material;
         }
 
-        private static GameObject BuildPlayerPrefab(Material material)
+        private static GameObject BuildBulletPrefab(Material material)
         {
-            var player = new GameObject("Player");
-            player.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn
-            player.AddComponent<NetworkObject>();
-            var networkTransform = player.AddComponent<NetworkTransform>();
-            networkTransform.AuthorityMode = NetworkTransform.AuthorityModes.Owner;
-            // 2D top-down and players never rotate: sync X/Y position only.
+            var bullet = new GameObject("Bullet");
+            bullet.transform.localScale = new Vector3(BulletVisualSize, BulletVisualSize, 1f);
+            bullet.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn
+            var body = bullet.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic; // moved by velocity on the server, placed by NetworkTransform elsewhere
+            body.gravityScale = 0f;
+            // Kinematic bodies only get trigger callbacks against kinematic/static colliders with full kinematic contacts on.
+            body.useFullKinematicContacts = true;
+            var collider = bullet.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.5f; // half the unit sprite; the transform scale shrinks it with the visual
+            bullet.AddComponent<NetworkObject>();
+            var networkTransform = bullet.AddComponent<NetworkTransform>(); // default AuthorityMode = Server
             networkTransform.SyncPositionZ = false;
             networkTransform.SyncRotAngleX = false;
             networkTransform.SyncRotAngleY = false;
-            networkTransform.SyncRotAngleZ = false;
-            player.AddComponent<PlayerMovement>();
-            var prefab = PrefabUtility.SaveAsPrefabAsset(player, PlayerPrefabPath);
-            Object.DestroyImmediate(player);
+            networkTransform.SyncRotAngleZ = false; // a bullet flies straight; rotation comes with the spawn
+            networkTransform.SyncScaleX = false;
+            networkTransform.SyncScaleY = false;
+            networkTransform.SyncScaleZ = false;
+            bullet.AddComponent<Bullet>();
+            return SaveNetworkPrefab(bullet, BulletPrefabPath);
+        }
+
+        private static GameObject BuildPlayerPrefab(Material material, GameObject bulletPrefab)
+        {
+            var player = new GameObject("Player");
+            player.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn
+            var body = player.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f; // top-down
+            body.freezeRotation = true; // aim rotation is set by code, not by collisions
+            player.AddComponent<BoxCollider2D>().size = Vector2.one;
+            player.AddComponent<NetworkObject>();
+            var networkTransform = player.AddComponent<NetworkTransform>();
+            networkTransform.AuthorityMode = NetworkTransform.AuthorityModes.Owner;
+            // 2D top-down: sync X/Y position and the Z rotation (aim) only.
+            networkTransform.SyncPositionZ = false;
+            networkTransform.SyncRotAngleX = false;
+            networkTransform.SyncRotAngleY = false;
+            networkTransform.SyncRotAngleZ = true;
+
+            var marker = new GameObject("AimMarker");
+            marker.transform.SetParent(player.transform, false);
+            marker.transform.localPosition = new Vector3(AimMarkerOffsetX, 0f, 0f);
+            marker.transform.localScale = new Vector3(AimMarkerSize.x, AimMarkerSize.y, 1f);
+            var markerRenderer = marker.AddComponent<SpriteRenderer>();
+            markerRenderer.sharedMaterial = material;
+            markerRenderer.sortingOrder = 1;
+
+            var movement = player.AddComponent<PlayerMovement>();
+            var movementSerialized = new SerializedObject(movement);
+            movementSerialized.FindProperty("_aimMarker").objectReferenceValue = markerRenderer;
+            movementSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            player.AddComponent<PlayerHealth>();
+
+            var shooting = player.AddComponent<PlayerShooting>();
+            var shootingSerialized = new SerializedObject(shooting);
+            shootingSerialized.FindProperty("_bulletPrefab").objectReferenceValue = bulletPrefab.GetComponent<Bullet>();
+            shootingSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            return SaveNetworkPrefab(player, PlayerPrefabPath);
+        }
+
+        private static GameObject SaveNetworkPrefab(GameObject instance, string path)
+        {
+            var prefab = PrefabUtility.SaveAsPrefabAsset(instance, path);
+            Object.DestroyImmediate(instance);
 
             // Netcode computes GlobalObjectIdHash only in NetworkObject.OnValidate (internal), from the
             // object's GlobalObjectId. On the scene-only GameObject above that id is null, so the hash
@@ -111,15 +179,34 @@ namespace LastWave.EditorTools
             return prefab;
         }
 
-        private static void AssertPlayerPrefabHash()
+        private static void AssertPrefabHash(string path)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             uint hash = prefab.GetComponent<NetworkObject>().PrefabIdHash;
-            if (hash == 0) throw new System.InvalidOperationException($"{PlayerPrefabPath} has GlobalObjectIdHash 0; Netcode cannot spawn it.");
-            Debug.Log($"LastWaveSetup: {PlayerPrefabPath} GlobalObjectIdHash = {hash}.");
+            if (hash == 0) throw new System.InvalidOperationException($"{path} has GlobalObjectIdHash 0; Netcode cannot spawn it.");
+            Debug.Log($"LastWaveSetup: {path} GlobalObjectIdHash = {hash}.");
         }
 
-        private static GameObject BuildNetworkManagerPrefab(GameObject playerPrefab)
+        // The bullet is spawned by the server from PlayerShooting, so clients must know it: it has to be
+        // in a NetworkPrefabsList that the NetworkManager uses. Netcode's own importer normally adds it to
+        // the default list; this makes sure, and returns the list for the NetworkManager prefab.
+        private static NetworkPrefabsList RegisterNetworkPrefab(GameObject prefab)
+        {
+            var list = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>(DefaultPrefabListPath);
+            if (list == null)
+            {
+                list = ScriptableObject.CreateInstance<NetworkPrefabsList>();
+                AssetDatabase.CreateAsset(list, DefaultPrefabListPath);
+            }
+            if (!list.Contains(prefab))
+            {
+                list.Add(new NetworkPrefab { Prefab = prefab });
+                EditorUtility.SetDirty(list);
+            }
+            return list;
+        }
+
+        private static GameObject BuildNetworkManagerPrefab(GameObject playerPrefab, NetworkPrefabsList prefabList)
         {
             var root = new GameObject("NetworkManager");
             var transport = root.AddComponent<UnityTransport>();
@@ -130,6 +217,7 @@ namespace LastWave.EditorTools
                 PlayerPrefab = playerPrefab,
                 EnableSceneManagement = true,
             };
+            networkManager.NetworkConfig.Prefabs.NetworkPrefabsLists.Add(prefabList);
             root.AddComponent<RoomService>();
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, NetworkManagerPrefabPath);
             Object.DestroyImmediate(root);

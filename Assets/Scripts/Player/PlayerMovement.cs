@@ -6,37 +6,59 @@ using UnityEngine.InputSystem;
 namespace LastWave.Player
 {
     /// <summary>
-    /// Placeholder top-down walking for story 001 (story 002 replaces or extends it with
-    /// aiming and shooting). The owner moves its own transform with WASD; a
-    /// <see cref="Unity.Netcode.Components.NetworkTransform"/> set to Owner authority on the
-    /// same prefab syncs the position to everyone. Each player gets a colour by client id.
+    /// Top-down WASD movement and mouse aiming for the local player. The owner drives a
+    /// <see cref="Rigidbody2D"/> and its rotation; a <see cref="Unity.Netcode.Components.NetworkTransform"/>
+    /// set to Owner authority on the same prefab syncs position and Z rotation to everyone
+    /// (movement is owner-authoritative on purpose, see story 002). On every other machine the body is
+    /// kinematic, so only the NetworkTransform moves it. Each player gets a colour by client id.
     /// </summary>
     /// <example>
-    /// Player prefab = SpriteRenderer + NetworkObject + NetworkTransform (AuthorityMode = Owner)
-    /// + PlayerMovement, assigned as NetworkConfig.PlayerPrefab (built by <c>LastWaveSetup.Run</c>).
+    /// Player prefab = SpriteRenderer + Rigidbody2D + BoxCollider2D + NetworkObject + NetworkTransform
+    /// (AuthorityMode = Owner) + PlayerMovement + PlayerHealth + PlayerShooting, assigned as
+    /// NetworkConfig.PlayerPrefab (built by <c>LastWaveSetup.Run</c>).
     /// </example>
-    [RequireComponent(typeof(SpriteRenderer))]
+    [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D))]
     public sealed class PlayerMovement : NetworkBehaviour
     {
         private static Sprite _squareSprite;
 
+        [SerializeField] private SpriteRenderer _aimMarker;
+
         private GameConfig _config;
+        private Rigidbody2D _body;
+
+        /// <summary>1 x 1 world unit white square sprite shared by players, aim markers and bullets.</summary>
+        internal static Sprite SquareSprite
+        {
+            get
+            {
+                if (_squareSprite == null)
+                {
+                    var texture = Texture2D.whiteTexture;
+                    _squareSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
+                        new Vector2(0.5f, 0.5f), texture.width);
+                }
+                return _squareSprite;
+            }
+        }
+
+        /// <summary>
+        /// Unit vector from this player towards the mouse, updated every frame on the owner.
+        /// Meaningful on the owner only; defaults to facing right.
+        /// </summary>
+        public Vector2 AimDirection { get; private set; } = Vector2.right;
 
         /// <summary>Applies the player's colour and, on the owner, its spawn position.</summary>
         public override void OnNetworkSpawn()
         {
             _config = GameConfig.Instance;
-
-            if (_squareSprite == null)
-            {
-                var texture = Texture2D.whiteTexture;
-                _squareSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
-                    new Vector2(0.5f, 0.5f), texture.width); // 1 x 1 world unit
-            }
+            _body = GetComponent<Rigidbody2D>();
 
             var spriteRenderer = GetComponent<SpriteRenderer>();
-            spriteRenderer.sprite = _squareSprite;
+            spriteRenderer.sprite = SquareSprite;
             spriteRenderer.color = _config.PlayerColors[(int)(OwnerClientId % (ulong)_config.PlayerColors.Length)];
+            _aimMarker.sprite = SquareSprite;
+            _aimMarker.color = _config.AimMarkerColor;
 
             if (IsOwner)
             {
@@ -44,20 +66,42 @@ namespace LastWave.Player
                 float centre = (_config.MaxPlayers - 1) * 0.5f;
                 transform.position = new Vector3((slot - centre) * _config.SpawnSpacing, 0f, 0f);
             }
+            else
+            {
+                // Remote copies are placed by NetworkTransform only; physics must not fight it.
+                _body.bodyType = RigidbodyType2D.Kinematic;
+            }
         }
 
         private void Update()
         {
             if (!IsSpawned || !IsOwner) return;
+
+            UpdateAim();
+
             var keyboard = Keyboard.current;
-            if (keyboard == null) return;
+            var direction = Vector2.zero;
+            if (keyboard != null)
+            {
+                direction = new Vector2(
+                    (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
+                    (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
+            }
+            _body.linearVelocity = direction.normalized * _config.MoveSpeed;
+        }
 
-            var direction = new Vector2(
-                (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
-                (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
-            if (direction == Vector2.zero) return;
+        private void UpdateAim()
+        {
+            var mouse = Mouse.current;
+            var cam = Camera.main;
+            if (mouse == null || cam == null) return;
 
-            transform.position += (Vector3)(direction.normalized * (_config.MoveSpeed * Time.deltaTime));
+            Vector2 mouseWorld = cam.ScreenToWorldPoint(mouse.position.ReadValue());
+            Vector2 toMouse = mouseWorld - (Vector2)transform.position;
+            if (toMouse.sqrMagnitude <= Mathf.Epsilon) return; // keep the last aim when the mouse is on the player
+
+            AimDirection = toMouse.normalized;
+            transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(AimDirection.y, AimDirection.x) * Mathf.Rad2Deg);
         }
     }
 }

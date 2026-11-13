@@ -37,6 +37,58 @@ namespace LastWave.Config
             new Color(1.00f, 0.55f, 0.15f), // orange
         };
 
+        // ---- Story 002: shooting, health ----
+        // Defaults below are the values used when an older GameConfig.asset lacks these fields
+        // (Unity keeps C# field initialisers for fields missing from the serialized asset).
+
+        /// <summary>Health every player starts with (server writes it; whole points).</summary>
+        [Min(1)] public int MaxPlayerHealth = 100;
+
+        /// <summary>Seconds between two shots from one player (server enforces it).</summary>
+        [Min(0.01f)] public float FireInterval = 0.25f;
+
+        /// <summary>
+        /// Slack the server grants on <see cref="FireInterval"/>, as a fraction of it, so network jitter
+        /// that bunches two requests together does not drop a legitimate shot. Average rate stays capped.
+        /// </summary>
+        [Range(0f, 1f)] public float FireIntervalTolerance = 0.5f;
+
+        /// <summary>Bullet speed in world units per second.</summary>
+        [Min(0f)] public float BulletSpeed = 14f;
+
+        /// <summary>Damage one bullet deals (story 003 applies it to enemies).</summary>
+        [Min(0)] public int BulletDamage = 10;
+
+        /// <summary>Seconds before a bullet despawns on its own.</summary>
+        [Min(0.01f)] public float BulletLifetime = 1.5f;
+
+        /// <summary>Distance from the player centre, along the aim direction, where a bullet appears.</summary>
+        [Min(0f)] public float BulletSpawnOffset = 0.7f;
+
+        /// <summary>Colour of every bullet. Not a player colour, red (enemies) or blue (base).</summary>
+        public Color BulletColor = new Color(1f, 1f, 1f);
+
+        /// <summary>Colour of the small marker on a player that shows the aim direction.</summary>
+        public Color AimMarkerColor = new Color(0.1f, 0.1f, 0.1f);
+
+        /// <summary>Health bar size in screen pixels (width, height).</summary>
+        public Vector2 HealthBarSize = new Vector2(60f, 8f);
+
+        /// <summary>How far above the player centre the health bar sits, in world units.</summary>
+        public float HealthBarOffsetY = 0.9f;
+
+        /// <summary>Health bar fill colour.</summary>
+        public Color HealthBarFillColor = new Color(0.25f, 0.9f, 0.3f);
+
+        /// <summary>Health bar background colour.</summary>
+        public Color HealthBarBackColor = new Color(0f, 0f, 0f, 0.7f);
+
+        /// <summary>
+        /// DEBUG: on the host, pressing this key deals <see cref="BulletDamage"/> to the host's own player,
+        /// so the server-side damage path can be seen on every machine before enemies exist (story 003).
+        /// </summary>
+        public UnityEngine.InputSystem.Key DebugDamageKey = UnityEngine.InputSystem.Key.K;
+
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";
 
