@@ -1,0 +1,43 @@
+# Unity project "Last Wave" — files Unity or the IDE regenerate.
+
+# Unity-generated folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE and solution files (Unity regenerates them)
+.vscode/
+.idea/
+.vs/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Crash and build reports
+crashlytics-buildid.txt
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+
+# OS files
+.DS_Store
+Thumbs.db
