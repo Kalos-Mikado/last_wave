@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using LastWave.Config;
+using LastWave.Enemies;
 using LastWave.Network;
 using LastWave.Player;
 using Unity.Netcode;
@@ -32,6 +33,9 @@ namespace LastWave.EditorTools
         private const string BulletPrefabPath = "Assets/Prefabs/Bullet.prefab";
         private const string DefaultPrefabListPath = "Assets/DefaultNetworkPrefabs.asset"; // created by Netcode's importer
         private const float BulletVisualSize = 0.25f; // world units; asset construction, not gameplay tuning
+        private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
+        private const float EnemyVisualSize = 0.8f; // world units; asset construction, not gameplay tuning
+        private const float BaseVisualSize = 1.5f;
         private const float AimMarkerOffsetX = 0.5f;
         private static readonly Vector2 AimMarkerSize = new Vector2(0.4f, 0.2f);
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
@@ -52,11 +56,13 @@ namespace LastWave.EditorTools
             var material = LoadOrCreateMaterial();
             var bulletPrefab = BuildBulletPrefab(material);
             var prefabList = RegisterNetworkPrefab(bulletPrefab);
+            var enemyPrefab = BuildEnemyPrefab(material);
+            RegisterNetworkPrefab(enemyPrefab);
             var playerPrefab = BuildPlayerPrefab(material, bulletPrefab);
             var networkManagerPrefab = BuildNetworkManagerPrefab(playerPrefab, prefabList);
 
-            var menuPath = BuildScene(config.MenuSceneName, networkManagerPrefab);
-            var gamePath = BuildScene(config.GameSceneName, networkManagerPrefab);
+            var menuPath = BuildScene(config.MenuSceneName, networkManagerPrefab, null, null);
+            var gamePath = BuildScene(config.GameSceneName, networkManagerPrefab, enemyPrefab.GetComponent<Enemy>(), material);
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(menuPath, true),
@@ -66,7 +72,8 @@ namespace LastWave.EditorTools
             AssetDatabase.SaveAssets();
             AssertPrefabHash(PlayerPrefabPath);
             AssertPrefabHash(BulletPrefabPath);
-            Debug.Log($"LastWaveSetup: built {BulletPrefabPath}, {PlayerPrefabPath}, {NetworkManagerPrefabPath}, {menuPath}, {gamePath}.");
+            AssertPrefabHash(EnemyPrefabPath);
+            Debug.Log($"LastWaveSetup: built {BulletPrefabPath}, {EnemyPrefabPath}, {PlayerPrefabPath}, {NetworkManagerPrefabPath}, {menuPath}, {gamePath}.");
         }
 
         private static GameConfig LoadOrCreateConfig()
@@ -118,6 +125,29 @@ namespace LastWave.EditorTools
             networkTransform.SyncScaleZ = false;
             bullet.AddComponent<Bullet>();
             return SaveNetworkPrefab(bullet, BulletPrefabPath);
+        }
+
+        private static GameObject BuildEnemyPrefab(Material material)
+        {
+            var enemy = new GameObject("Enemy");
+            // Collider 0.8 units wide: well above the ~0.3 a bullet (0.25 wide, 14 units/s) can tunnel through.
+            enemy.transform.localScale = new Vector3(EnemyVisualSize, EnemyVisualSize, 1f);
+            enemy.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite and colour are set at spawn
+            var body = enemy.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic; // moved by velocity on the server, placed by NetworkTransform elsewhere
+            body.gravityScale = 0f;
+            enemy.AddComponent<BoxCollider2D>().size = Vector2.one; // solid (not a trigger) so bullets register the hit
+            enemy.AddComponent<NetworkObject>();
+            var networkTransform = enemy.AddComponent<NetworkTransform>(); // default AuthorityMode = Server
+            networkTransform.SyncPositionZ = false;
+            networkTransform.SyncRotAngleX = false;
+            networkTransform.SyncRotAngleY = false;
+            networkTransform.SyncRotAngleZ = false; // enemies do not turn
+            networkTransform.SyncScaleX = false;
+            networkTransform.SyncScaleY = false;
+            networkTransform.SyncScaleZ = false;
+            enemy.AddComponent<Enemy>();
+            return SaveNetworkPrefab(enemy, EnemyPrefabPath);
         }
 
         private static GameObject BuildPlayerPrefab(Material material, GameObject bulletPrefab)
@@ -224,7 +254,8 @@ namespace LastWave.EditorTools
             return prefab;
         }
 
-        private static string BuildScene(string sceneName, GameObject networkManagerPrefab)
+        // enemyPrefab and material are given for the Game scene only (they add the wave manager and base marker).
+        private static string BuildScene(string sceneName, GameObject networkManagerPrefab, Enemy enemyPrefab, Material material)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -243,6 +274,24 @@ namespace LastWave.EditorTools
             serialized.FindProperty("_networkManagerPrefab").objectReferenceValue =
                 networkManagerPrefab.GetComponent<RoomService>();
             serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            if (enemyPrefab != null)
+            {
+                // Story 004 turns this marker into the base with health and repair.
+                var baseMarker = new GameObject("Base");
+                baseMarker.transform.position = Vector3.zero; // map centre
+                baseMarker.transform.localScale = new Vector3(BaseVisualSize, BaseVisualSize, 1f);
+                var baseRenderer = baseMarker.AddComponent<SpriteRenderer>(); // sprite and colour are set by WaveManager at start
+                baseRenderer.sharedMaterial = material;
+                baseRenderer.sortingOrder = -1; // under players and enemies
+
+                var waves = new GameObject("WaveManager").AddComponent<WaveManager>();
+                var wavesSerialized = new SerializedObject(waves);
+                wavesSerialized.FindProperty("_enemyPrefab").objectReferenceValue = enemyPrefab;
+                wavesSerialized.FindProperty("_basePoint").objectReferenceValue = baseMarker.transform;
+                wavesSerialized.FindProperty("_baseMarker").objectReferenceValue = baseRenderer;
+                wavesSerialized.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             var path = $"{ScenesFolder}/{sceneName}.unity";
             if (!EditorSceneManager.SaveScene(scene, path)) throw new System.InvalidOperationException($"Could not save {path}.");

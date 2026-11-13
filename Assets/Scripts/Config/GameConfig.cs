@@ -2,6 +2,42 @@ using UnityEngine;
 
 namespace LastWave.Config
 {
+    /// <summary>Map edges an enemy can spawn on. Combine values to spawn from several edges at once.</summary>
+    [System.Flags]
+    public enum SpawnEdges
+    {
+        /// <summary>No edge set; treated as all four edges.</summary>
+        None = 0,
+        /// <summary>The top edge of the map.</summary>
+        Top = 1,
+        /// <summary>The bottom edge of the map.</summary>
+        Bottom = 2,
+        /// <summary>The left edge of the map.</summary>
+        Left = 4,
+        /// <summary>The right edge of the map.</summary>
+        Right = 8,
+    }
+
+    /// <summary>One row of the wave table in <see cref="GameConfig.Waves"/>.</summary>
+    [System.Serializable]
+    public sealed class WaveDefinition
+    {
+        /// <summary>Enemies in the wave.</summary>
+        [Min(1)] public int Count = 1;
+
+        /// <summary>Enemy walking speed in world units per second.</summary>
+        [Min(0f)] public float Speed = 1.5f;
+
+        /// <summary>Enemy health in points.</summary>
+        [Min(1)] public int Health = 20;
+
+        /// <summary>Edges the enemies spawn on; they are shared out evenly.</summary>
+        public SpawnEdges Edges = SpawnEdges.Top;
+
+        /// <summary>Seconds between two enemies of this wave appearing.</summary>
+        [Min(0f)] public float SpawnInterval = 1f;
+    }
+
     /// <summary>
     /// Every tunable value for the room and the placeholder player, in one asset.
     /// The asset lives at <c>Assets/Resources/GameConfig.asset</c> and is created by
@@ -88,6 +124,49 @@ namespace LastWave.Config
         /// so the server-side damage path can be seen on every machine before enemies exist (story 003).
         /// </summary>
         public UnityEngine.InputSystem.Key DebugDamageKey = UnityEngine.InputSystem.Key.K;
+
+        // ---- Story 003: enemy waves ----
+        // Like the story-002 block, these defaults apply when an older GameConfig.asset lacks the fields.
+
+        /// <summary>Seconds from the game scene starting to wave 1 (brief: about 20).</summary>
+        [Min(0f)] public float FirstWaveDelaySeconds = 20f;
+
+        /// <summary>Seconds of rest after a wave is cleared, before the next one (guessed: 10).</summary>
+        [Min(0f)] public float WaveRestSeconds = 10f;
+
+        /// <summary>Half width and half height of the play area, in world units; enemies spawn on its edges.</summary>
+        public Vector2 MapHalfExtents = new Vector2(10f, 5.5f);
+
+        /// <summary>Enemies walk towards the base point and stop this far from it, in world units.</summary>
+        [Min(0f)] public float EnemyStopDistance = 1.2f;
+
+        /// <summary>Enemy colour. Red is reserved for enemies (brief, Look).</summary>
+        public Color EnemyColor = new Color(0.9f, 0.15f, 0.15f);
+
+        /// <summary>Colour of the placeholder base marker. Story 004 turns the marker into the real base. Blue is reserved for the base.</summary>
+        public Color BaseColor = new Color(0.2f, 0.45f, 1f);
+
+        /// <summary>Font size of the "Wave n / total" label, in pixels.</summary>
+        [Min(8)] public int WaveLabelFontSize = 28;
+
+        /// <summary>
+        /// One row per wave, in order; the row count is the number of waves (brief: 10).
+        /// Wave 1 is weak and from one edge, waves 3-4 come from several edges, later waves are faster and bigger.
+        /// Bullet damage is 10, so Health 20 is two hits.
+        /// </summary>
+        public WaveDefinition[] Waves =
+        {
+            new WaveDefinition { Count = 4,  Speed = 1.5f, Health = 20, Edges = SpawnEdges.Top,                                                 SpawnInterval = 1.0f },
+            new WaveDefinition { Count = 6,  Speed = 1.6f, Health = 20, Edges = SpawnEdges.Left,                                                SpawnInterval = 1.0f },
+            new WaveDefinition { Count = 10, Speed = 1.8f, Health = 20, Edges = SpawnEdges.Top | SpawnEdges.Left | SpawnEdges.Right,            SpawnInterval = 0.8f },
+            new WaveDefinition { Count = 12, Speed = 1.9f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.8f },
+            new WaveDefinition { Count = 15, Speed = 2.1f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.7f },
+            new WaveDefinition { Count = 18, Speed = 2.3f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.6f },
+            new WaveDefinition { Count = 22, Speed = 2.5f, Health = 40, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.5f },
+            new WaveDefinition { Count = 26, Speed = 2.7f, Health = 40, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.5f },
+            new WaveDefinition { Count = 30, Speed = 2.9f, Health = 50, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.4f },
+            new WaveDefinition { Count = 36, Speed = 3.1f, Health = 50, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.4f },
+        };
 
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";

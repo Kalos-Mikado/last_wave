@@ -34,5 +34,63 @@ MonoBehaviour:
   HealthBarFillColor: {r: 0.25, g: 0.9, b: 0.3, a: 1}
   HealthBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
   DebugDamageKey: 25
+  FirstWaveDelaySeconds: 20
+  WaveRestSeconds: 10
+  MapHalfExtents: {x: 10, y: 5.5}
+  EnemyStopDistance: 1.2
+  EnemyColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
+  BaseColor: {r: 0.2, g: 0.45, b: 1, a: 1}
+  WaveLabelFontSize: 28
+  Waves:
+  - Count: 4
+    Speed: 1.5
+    Health: 20
+    Edges: 1
+    SpawnInterval: 1
+  - Count: 6
+    Speed: 1.6
+    Health: 20
+    Edges: 4
+    SpawnInterval: 1
+  - Count: 10
+    Speed: 1.8
+    Health: 20
+    Edges: 13
+    SpawnInterval: 0.8
+  - Count: 12
+    Speed: 1.9
+    Health: 30
+    Edges: 15
+    SpawnInterval: 0.8
+  - Count: 15
+    Speed: 2.1
+    Health: 30
+    Edges: 15
+    SpawnInterval: 0.7
+  - Count: 18
+    Speed: 2.3
+    Health: 30
+    Edges: 15
+    SpawnInterval: 0.6
+  - Count: 22
+    Speed: 2.5
+    Health: 40
+    Edges: 15
+    SpawnInterval: 0.5
+  - Count: 26
+    Speed: 2.7
+    Health: 40
+    Edges: 15
+    SpawnInterval: 0.5
+  - Count: 30
+    Speed: 2.9
+    Health: 50
+    Edges: 15
+    SpawnInterval: 0.4
+  - Count: 36
+    Speed: 3.1
+    Health: 50
+    Edges: 15
+    SpawnInterval: 0.4
   MenuSceneName: Menu
   GameSceneName: Game
