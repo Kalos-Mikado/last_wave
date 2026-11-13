@@ -182,6 +182,7 @@ namespace LastWave.EditorTools
             movementSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<PlayerHealth>();
+            player.AddComponent<PlayerLife>(); // story 005: downed, revive, death, respawn
             player.AddComponent<PlayerRepair>();
 
             var shooting = player.AddComponent<PlayerShooting>();
@@ -298,6 +299,9 @@ namespace LastWave.EditorTools
                 wavesSerialized.FindProperty("_basePoint").objectReferenceValue = baseMarker.transform;
                 wavesSerialized.FindProperty("_baseMarker").objectReferenceValue = baseRenderer;
                 wavesSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+                // Story 005: the "everyone is dead" lose condition (scene object, no NetworkObject).
+                new GameObject("TeamDefeat").AddComponent<TeamDefeat>();
             }
 
             var path = $"{ScenesFolder}/{sceneName}.unity";

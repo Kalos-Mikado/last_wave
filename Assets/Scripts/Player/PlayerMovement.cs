@@ -27,6 +27,7 @@ namespace LastWave.Player
         private GameConfig _config;
         private Rigidbody2D _body;
         private PlayerRepair _repair;
+        private PlayerLife _life;
 
         /// <summary>1 x 1 world unit white square sprite shared by players, aim markers and bullets.</summary>
         internal static Sprite SquareSprite
@@ -55,10 +56,11 @@ namespace LastWave.Player
             _config = GameConfig.Instance;
             _body = GetComponent<Rigidbody2D>();
             _repair = GetComponent<PlayerRepair>();
+            _life = GetComponent<PlayerLife>();
 
             var spriteRenderer = GetComponent<SpriteRenderer>();
             spriteRenderer.sprite = SquareSprite;
-            spriteRenderer.color = _config.PlayerColors[(int)(OwnerClientId % (ulong)_config.PlayerColors.Length)];
+            // The body colour (and the downed dimming) is set by PlayerLife, the one owner of the player's look.
             _aimMarker.sprite = SquareSprite;
             _aimMarker.color = _config.AimMarkerColor;
 
@@ -79,6 +81,14 @@ namespace LastWave.Player
         {
             if (!IsSpawned || !IsOwner) return;
 
+            // Downed or dead (story 005): stay put, and stop turning. Movement is owner-authoritative
+            // (story 002), so this is a client-side rule; only shooting is also enforced on the server.
+            if (_life != null && !_life.IsStanding)
+            {
+                _body.linearVelocity = Vector2.zero;
+                return;
+            }
+
             UpdateAim();
 
             var keyboard = Keyboard.current;
@@ -89,8 +99,8 @@ namespace LastWave.Player
                     (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
                     (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
             }
-            // Repairing the base (story 004) means standing still.
-            if (_repair != null && _repair.IsRepairingLocal) direction = Vector2.zero;
+            // Repairing the base (story 004) or reviving a friend (story 005) means standing still.
+            if (_repair != null && _repair.IsInteractingLocal) direction = Vector2.zero;
             _body.linearVelocity = direction.normalized * _config.MoveSpeed;
         }
 

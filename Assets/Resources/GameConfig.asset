@@ -102,5 +102,17 @@ MonoBehaviour:
   BaseBarSize: {x: 160, y: 12}
   BaseBarOffsetY: 1.2
   BaseBarFillColor: {r: 0.35, g: 0.65, b: 1, a: 1}
+  ReviveHoldSeconds: 3
+  ReviveRange: 2
+  ReviveHealthFraction: 0.15
+  DownedTimeoutSeconds: 15
+  RespawnHealthFraction: 1
+  RespawnOffset: {x: 0, y: -1.5}
+  DownedTint: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+  DownedBarColor: {r: 0.95, g: 0.95, b: 0.95, a: 1}
+  ReviveBarColor: {r: 0.2, g: 0.9, b: 0.85, a: 1}
+  EnemyPlayerDamage: 8
+  EnemyPlayerHitInterval: 1
+  EnemyContactRange: 0.05
   MenuSceneName: Menu
   GameSceneName: Game

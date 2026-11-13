@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using LastWave.Base;
 using LastWave.Config;
 using LastWave.Player;
@@ -33,6 +34,8 @@ namespace LastWave.Enemies
         private BaseHealth _base;
         private bool _wasAtBase;
         private float _nextHitTime;
+        private Collider2D _collider;
+        private readonly Dictionary<PlayerLife, float> _playerNextHit = new Dictionary<PlayerLife, float>(); // server
 
         /// <summary>Health left on the server; 0 on a client (not synchronised on purpose).</summary>
         public int Health => _health;
@@ -44,6 +47,7 @@ namespace LastWave.Enemies
         public override void OnNetworkSpawn()
         {
             _body = GetComponent<Rigidbody2D>();
+            _collider = GetComponent<Collider2D>();
             var spriteRenderer = GetComponent<SpriteRenderer>();
             spriteRenderer.sprite = PlayerMovement.SquareSprite;
             spriteRenderer.color = GameConfig.Instance.EnemyColor;
@@ -97,6 +101,46 @@ namespace LastWave.Enemies
             _body.linearVelocity = atTarget ? Vector2.zero : toTarget.normalized * _speed;
 
             HitBase(atTarget);
+            HitPlayers();
+        }
+
+        // Story 005: an enemy touching a STANDING player hurts it once per hit interval (its own timer per
+        // player). The first hit comes one interval after contact starts; the timer restarts when contact
+        // breaks or the player stops standing. Contact is "the gap between the two colliders is at most
+        // EnemyContactRange", measured with Collider2D.Distance each frame rather than collision callbacks:
+        // callbacks need a dynamic body or full kinematic contacts, stop for sleeping bodies, and a remote
+        // player's server copy is kinematic. The solid collision itself is untouched (enemies still shove).
+        // An invalid result (a disabled collider or one with no shapes) carries a default distance of 0: not contact.
+        private static bool InContact(ColliderDistance2D distance, float range)
+        {
+            return distance.isValid && distance.distance <= range;
+        }
+
+        private void HitPlayers()
+        {
+            var config = GameConfig.Instance;
+            float now = Time.time;
+            foreach (var life in PlayerLife.All)
+            {
+                var health = life.Health;
+                var collider = life.BodyCollider;
+                if (health == null || collider == null || !life.IsStanding || !collider.enabled
+                    || !InContact(_collider.Distance(collider), config.EnemyContactRange))
+                {
+                    _playerNextHit.Remove(life); // no contact (or nothing to hurt): the timer restarts on the next contact
+                    continue;
+                }
+
+                if (!_playerNextHit.TryGetValue(life, out float nextHit))
+                {
+                    _playerNextHit[life] = now + config.EnemyPlayerHitInterval;
+                    continue;
+                }
+                if (now < nextHit) continue;
+
+                health.TakeDamage(config.EnemyPlayerDamage);
+                _playerNextHit[life] = now + config.EnemyPlayerHitInterval;
+            }
         }
 
         // Story 004: an enemy standing at the base hits it once per hit interval (its own timer).

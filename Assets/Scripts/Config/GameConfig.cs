@@ -202,6 +202,55 @@ namespace LastWave.Config
         /// <summary>Base health bar fill colour.</summary>
         public Color BaseBarFillColor = new Color(0.35f, 0.65f, 1f);
 
+        // ---- Story 005: downed, revive, death, respawn, enemy contact damage ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Every number is a first guess for the designer to tune, except the 10-20% revive range (brief).
+
+        /// <summary>Seconds a friend must hold the revive key (same key as repair) next to a downed player (guessed: 3).</summary>
+        [Min(0.1f)] public float ReviveHoldSeconds = 3f;
+
+        /// <summary>A reviver must be within this distance of the downed player, centre to centre, in world units (guessed: 2).</summary>
+        [Min(0f)] public float ReviveRange = 2f;
+
+        /// <summary>
+        /// Fraction of max health a revived player stands up with. The brief says 10-20%: the game clamps this
+        /// to 0.10-0.20 whatever is written here (default 0.15).
+        /// </summary>
+        [Range(0.10f, 0.20f)] public float ReviveHealthFraction = 0.15f;
+
+        /// <summary>Seconds a downed player waits for a revive before dying (guessed: 15).</summary>
+        [Min(0.1f)] public float DownedTimeoutSeconds = 15f;
+
+        /// <summary>Fraction of max health a dead player respawns with at the end of a wave (guessed: 1 = full).</summary>
+        [Range(0f, 1f)] public float RespawnHealthFraction = 1f;
+
+        /// <summary>
+        /// Where a dead player respawns, relative to the base centre, in world units. Players are also spread
+        /// along X by <see cref="SpawnSpacing"/> by slot so they do not stack (guessed: just below the base).
+        /// </summary>
+        public Vector2 RespawnOffset = new Vector2(0f, -1.5f);
+
+        /// <summary>Multiplied into a downed player's body colour (dims it towards grey).</summary>
+        public Color DownedTint = new Color(0.4f, 0.4f, 0.4f, 1f);
+
+        /// <summary>Fill colour of a downed player's bar, which shows the time left before death instead of health.</summary>
+        public Color DownedBarColor = new Color(0.95f, 0.95f, 0.95f);
+
+        /// <summary>Colour of the thin revive-progress bar under a downed player's bar.</summary>
+        public Color ReviveBarColor = new Color(0.2f, 0.9f, 0.85f);
+
+        /// <summary>Damage one enemy deals to a standing player per hit (guessed: 8).</summary>
+        [Min(0)] public int EnemyPlayerDamage = 8;
+
+        /// <summary>Seconds between two hits from the same enemy on the same player while touching. The first hit comes this long after contact starts (guessed: 1).</summary>
+        [Min(0.05f)] public float EnemyPlayerHitInterval = 1f;
+
+        /// <summary>
+        /// An enemy counts as touching a player when the gap between their colliders is at most this, in world units.
+        /// Solid colliders push each other apart and rest a hair away from each other, so 0 would miss real contact.
+        /// </summary>
+        [Min(0f)] public float EnemyContactRange = 0.05f;
+
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";
 

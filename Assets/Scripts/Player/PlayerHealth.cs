@@ -22,6 +22,7 @@ namespace LastWave.Player
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private GameConfig _config;
+        private PlayerLife _life;
 
         /// <summary>Current health, 0 up to <see cref="MaxHealth"/>. Same value on every machine.</summary>
         public int Health => _health.Value;
@@ -36,6 +37,7 @@ namespace LastWave.Player
         public override void OnNetworkSpawn()
         {
             _config = GameConfig.Instance;
+            _life = GetComponent<PlayerLife>();
             _health.OnValueChanged += HandleHealthChanged;
             if (IsServer) _health.Value = _config.MaxPlayerHealth;
         }
@@ -46,10 +48,13 @@ namespace LastWave.Player
             _health.OnValueChanged -= HandleHealthChanged;
         }
 
+        /// <summary>True while this player can be hurt: standing. Downed and dead players take no damage.</summary>
+        public bool CanTakeDamage => _life == null || _life.IsStanding;
+
         /// <summary>
         /// Server only: removes health, clamped at 0. Ignored (with a warning) when called on a client,
-        /// and ignored for amounts of 0 or less.
-        /// Reaching 0 does nothing special yet: downed, revive and respawn belong to story 005.
+        /// for amounts of 0 or less, and while the player is downed or dead.
+        /// Reaching 0 downs the player (<see cref="PlayerLife.ServerDown"/>, story 005).
         /// </summary>
         /// <param name="amount">Points of damage, positive.</param>
         public void TakeDamage(int amount)
@@ -59,8 +64,24 @@ namespace LastWave.Player
                 Debug.LogWarning("PlayerHealth.TakeDamage is server-only; call ignored.");
                 return;
             }
-            if (amount <= 0) return;
+            if (amount <= 0 || !CanTakeDamage) return;
             _health.Value = Mathf.Max(0, _health.Value - amount);
+            if (_health.Value == 0 && _life != null) _life.ServerDown();
+        }
+
+        /// <summary>
+        /// Server only: sets health directly, clamped to 0 up to <see cref="MaxHealth"/> (revive and respawn use it).
+        /// Ignored (with a warning) on a client.
+        /// </summary>
+        /// <param name="value">New health in whole points.</param>
+        public void ServerSetHealth(int value)
+        {
+            if (!IsServer)
+            {
+                Debug.LogWarning("PlayerHealth.ServerSetHealth is server-only; call ignored.");
+                return;
+            }
+            _health.Value = Mathf.Clamp(value, 0, _config.MaxPlayerHealth);
         }
 
         private void HandleHealthChanged(int previous, int current)
@@ -69,7 +90,8 @@ namespace LastWave.Player
         }
 
         // DEBUG PATH (story 002): the host presses the configured key to damage its own player, which
-        // shows the server-written health reaching every client. Remove once enemies deal damage (story 003).
+        // shows the server-written health reaching every client. It goes through TakeDamage, so it also
+        // downs the player (story 005). Remove when no longer needed for testing.
         private void Update()
         {
             if (!IsSpawned || !IsServer || !IsOwner) return;
@@ -83,6 +105,7 @@ namespace LastWave.Player
         private void OnGUI()
         {
             if (!IsSpawned || Event.current.type != EventType.Repaint) return;
+            if (_life != null && _life.IsDead) return; // not in play: no bar
             var cam = Camera.main;
             if (cam == null) return;
 
@@ -91,13 +114,26 @@ namespace LastWave.Player
 
             Vector2 size = _config.HealthBarSize;
             var back = new Rect(screen.x - size.x * 0.5f, Screen.height - screen.y - size.y * 0.5f, size.x, size.y);
-            float fraction = Mathf.Clamp01((float)_health.Value / _config.MaxPlayerHealth);
+            bool downed = _life != null && _life.IsDowned;
+            // A downed player's bar shows the time left before death (distinct colour), not health.
+            float fraction = downed
+                ? Mathf.Clamp01(_life.DownedRemaining / _config.DownedTimeoutSeconds)
+                : Mathf.Clamp01((float)_health.Value / _config.MaxPlayerHealth);
 
             var previousColor = GUI.color;
             GUI.color = _config.HealthBarBackColor;
             GUI.DrawTexture(back, Texture2D.whiteTexture);
-            GUI.color = _config.HealthBarFillColor;
+            GUI.color = downed ? _config.DownedBarColor : _config.HealthBarFillColor;
             GUI.DrawTexture(new Rect(back.x, back.y, back.width * fraction, back.height), Texture2D.whiteTexture);
+            if (downed && _life.ReviveProgress > 0f)
+            {
+                // Thin bar right under it: how far the revive has got.
+                float thickness = back.height * 0.5f;
+                GUI.color = _config.HealthBarBackColor;
+                GUI.DrawTexture(new Rect(back.x, back.yMax + 1f, back.width, thickness), Texture2D.whiteTexture);
+                GUI.color = _config.ReviveBarColor;
+                GUI.DrawTexture(new Rect(back.x, back.yMax + 1f, back.width * _life.ReviveProgress, thickness), Texture2D.whiteTexture);
+            }
             GUI.color = previousColor;
         }
     }
