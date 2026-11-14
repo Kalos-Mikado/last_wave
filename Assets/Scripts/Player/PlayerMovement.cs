@@ -66,9 +66,7 @@ namespace LastWave.Player
 
             if (IsOwner)
             {
-                int slot = (int)(OwnerClientId % (ulong)_config.MaxPlayers);
-                float centre = (_config.MaxPlayers - 1) * 0.5f;
-                transform.position = new Vector3((slot - centre) * _config.SpawnSpacing, 0f, 0f);
+                transform.position = _config.PlayerSpawnPosition(OwnerClientId); // near the base (story 009)
             }
             else
             {

@@ -277,7 +277,7 @@ namespace LastWave.Enemies
         private Enemy SpawnAt(SpawnEdges edge, float along, float speed, int health, EnemyKind kind = EnemyKind.Normal,
             float size = 1f, int playerDamage = -1, int baseDamage = -1)
         {
-            Vector2 position = (Vector2)_basePoint.position + WavePlanner.EdgePoint(edge, _config.MapHalfExtents, along);
+            Vector2 position = WavePlanner.EdgePoint(edge, _config.MapHalfExtents, along);
             var enemy = NetworkObject.InstantiateAndSpawn(_enemyPrefab.gameObject, _network,
                 destroyWithScene: true, position: position, rotation: Quaternion.identity).GetComponent<Enemy>();
             enemy.Launch(_basePoint, speed, health, kind, size, playerDamage, baseDamage);

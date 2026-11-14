@@ -284,7 +284,8 @@ namespace LastWave.EditorTools
             {
                 // The base: BaseHealth (scene object, no NetworkObject) owns its health, look and bar (story 004).
                 var baseMarker = new GameObject("Base");
-                baseMarker.transform.position = Vector3.zero; // map centre
+                var baseConfig = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
+                baseMarker.transform.position = baseConfig.BasePosition; // far left, vertically centred (story 009)
                 baseMarker.transform.localScale = new Vector3(BaseVisualSize, BaseVisualSize, 1f);
                 var baseRenderer = baseMarker.AddComponent<SpriteRenderer>(); // sprite and colour are set by WaveManager at start
                 baseRenderer.sharedMaterial = material;

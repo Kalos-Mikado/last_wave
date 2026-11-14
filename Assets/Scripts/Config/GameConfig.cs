@@ -267,11 +267,32 @@ namespace LastWave.Config
         /// <summary>Fraction of max health a dead player respawns with at the end of a wave (guessed: 1 = full).</summary>
         [Range(0f, 1f)] public float RespawnHealthFraction = 1f;
 
+        // ---- Story 009: base on the left, players spawn near it ----
+
         /// <summary>
-        /// Where a dead player respawns, relative to the base centre, in world units. Players are also spread
-        /// along X by <see cref="SpawnSpacing"/> by slot so they do not stack (guessed: just below the base).
+        /// Centre of the base in world units (brief feature 9): inside the left map edge, vertically centred.
+        /// The scene's Base object is placed here by LastWaveSetup; read it from here, never hardcode it.
         /// </summary>
-        public Vector2 RespawnOffset = new Vector2(0f, -1.5f);
+        public Vector2 BasePosition = new Vector2(-8.5f, 0f);
+
+        /// <summary>
+        /// Where players start, and where a dead player respawns and everyone returns after Restart, relative to
+        /// <see cref="BasePosition"/>, in world units (guessed: just to the right of the base). Players are spread
+        /// along Y by <see cref="SpawnSpacing"/> by slot so they do not stack (the lane is horizontal).
+        /// </summary>
+        public Vector2 PlayerSpawnOffset = new Vector2(2f, 0f);
+
+        /// <summary>
+        /// The one spawn formula (story 009): base position + <see cref="PlayerSpawnOffset"/> + vertical spread by
+        /// slot (client id modulo <see cref="MaxPlayers"/>), centred on the spawn point. Used for start, respawn and Restart.
+        /// </summary>
+        /// <param name="ownerClientId">Network client id of the player's owner.</param>
+        public Vector2 PlayerSpawnPosition(ulong ownerClientId)
+        {
+            int slot = (int)(ownerClientId % (ulong)MaxPlayers);
+            float centre = (MaxPlayers - 1) * 0.5f;
+            return BasePosition + PlayerSpawnOffset + Vector2.up * ((slot - centre) * SpawnSpacing);
+        }
 
         /// <summary>Multiplied into a downed player's body colour (dims it towards grey).</summary>
         public Color DownedTint = new Color(0.4f, 0.4f, 0.4f, 1f);

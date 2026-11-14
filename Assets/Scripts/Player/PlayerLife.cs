@@ -314,22 +314,10 @@ namespace LastWave.Player
             RespawnRpc(StartPosition());
         }
 
-        // Same slot formula as PlayerMovement.OnNetworkSpawn (that file is outside story 007's list, so it is repeated here).
-        private Vector2 StartPosition()
-        {
-            int slot = (int)(OwnerClientId % (ulong)_config.MaxPlayers);
-            float centre = (_config.MaxPlayers - 1) * 0.5f;
-            return new Vector2((slot - centre) * _config.SpawnSpacing, 0f);
-        }
+        // Start, respawn and Restart all use the one spawn point near the base (story 009).
+        private Vector2 StartPosition() => _config.PlayerSpawnPosition(OwnerClientId);
 
-        private Vector2 RespawnPosition()
-        {
-            var baseHealth = FindFirstObjectByType<BaseHealth>();
-            Vector2 origin = baseHealth != null ? baseHealth.Position : Vector2.zero;
-            int slot = (int)(OwnerClientId % (ulong)_config.MaxPlayers);
-            float centre = (_config.MaxPlayers - 1) * 0.5f;
-            return origin + _config.RespawnOffset + Vector2.right * ((slot - centre) * _config.SpawnSpacing);
-        }
+        private Vector2 RespawnPosition() => _config.PlayerSpawnPosition(OwnerClientId);
 
         private bool SetState(PlayerState next)
         {
