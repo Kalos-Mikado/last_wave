@@ -114,5 +114,28 @@ MonoBehaviour:
   EnemyPlayerDamage: 8
   EnemyPlayerHitInterval: 1
   EnemyContactRange: 0.05
+  Bosses:
+  - Wave: 5
+    Kind: 1
+    Size: 2
+    Health: 300
+    Speed: 1.2
+    PlayerDamage: 20
+    BaseDamage: 25
+    Edge: 1
+  - Wave: 10
+    Kind: 2
+    Size: 3
+    Health: 1000
+    Speed: 1.5
+    PlayerDamage: 35
+    BaseDamage: 50
+    Edge: 1
+  MiniBossLabel: Mini-boss
+  BossLabel: Boss
+  BossBarSize: {x: 520, y: 22}
+  BossBarFillColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+  BossBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
+  BossBarFontSize: 20
   MenuSceneName: Menu
   GameSceneName: Game

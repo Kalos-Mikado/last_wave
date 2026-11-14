@@ -12,7 +12,9 @@ namespace LastWave.Enemies
     /// A wave enemy. Spawn, movement, health and death all happen on the server; a server-authority
     /// NetworkTransform shows the same walk on every machine. The enemy walks towards a target point
     /// (the base) and stays there, hitting the base on a timer (story 004).
-    /// Health is a server-only value: clients never need it, they just see the enemy vanish on death.
+    /// Health is a server-only value for normal enemies (clients just see them vanish on death). A mini-boss or
+    /// boss (<see cref="EnemyKind"/>) is the same enemy with other numbers, a larger body, and a health pair the
+    /// server writes to NetworkVariables so every machine can draw its bar (story 006).
     /// </summary>
     /// <example>
     /// <code>
@@ -37,13 +39,41 @@ namespace LastWave.Enemies
         private Collider2D _collider;
         private readonly Dictionary<PlayerLife, float> _playerNextHit = new Dictionary<PlayerLife, float>(); // server
 
-        /// <summary>Health left on the server; 0 on a client (not synchronised on purpose).</summary>
+        // Story 006. Kind and size are written once by the server so every machine draws a boss the same way
+        // (the prefab's NetworkTransform does not sync scale). The shown health pair is written ONLY for boss
+        // kinds, so the many normal enemies cost no extra traffic; clients read it for the boss bar.
+        private readonly NetworkVariable<byte> _kind = new NetworkVariable<byte>(
+            (byte)EnemyKind.Normal, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<float> _size = new NetworkVariable<float>(
+            1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<int> _shownHealth = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<int> _shownMaxHealth = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private static readonly List<Enemy> BossList = new List<Enemy>();
+        private Vector3 _baseScale;
+        private int _playerDamage; // server
+        private int _baseDamage;   // server
+
+        /// <summary>Health left on the server; 0 on a client (use <see cref="ShownHealth"/> for a boss).</summary>
         public int Health => _health;
 
         /// <summary>Raised on the server just before the enemy despawns because its health reached 0.</summary>
         public event Action<Enemy> OnDied;
 
-        /// <summary>Sets the look on every machine.</summary>
+        /// <summary>What this enemy is; same on every machine. Normal until the server launches it.</summary>
+        public EnemyKind Kind => (EnemyKind)_kind.Value;
+
+        /// <summary>Boss health on every machine (0 for normal enemies, which never write it).</summary>
+        public int ShownHealth => _shownHealth.Value;
+
+        /// <summary>Boss maximum health on every machine (0 for normal enemies).</summary>
+        public int ShownMaxHealth => _shownMaxHealth.Value;
+
+        /// <summary>Spawned mini-bosses and bosses on this machine, for the health bar. Do not modify.</summary>
+        public static IReadOnlyList<Enemy> Bosses => BossList;
+
+        /// <summary>Sets the look on every machine and follows later changes of kind and size.</summary>
         public override void OnNetworkSpawn()
         {
             _body = GetComponent<Rigidbody2D>();
@@ -51,22 +81,66 @@ namespace LastWave.Enemies
             var spriteRenderer = GetComponent<SpriteRenderer>();
             spriteRenderer.sprite = PlayerMovement.SquareSprite;
             spriteRenderer.color = GameConfig.Instance.EnemyColor;
+
+            _baseScale = transform.localScale;
+            _kind.OnValueChanged += HandleKindOrSizeChanged;
+            _size.OnValueChanged += HandleSizeChanged;
+            ApplyLook(); // a client may already hold the synced kind and size; the server launches after spawning
+        }
+
+        /// <summary>Leaves the boss list and unsubscribes.</summary>
+        public override void OnNetworkDespawn()
+        {
+            _kind.OnValueChanged -= HandleKindOrSizeChanged;
+            _size.OnValueChanged -= HandleSizeChanged;
+            BossList.Remove(this);
+        }
+
+        private void HandleKindOrSizeChanged(byte previous, byte current) => ApplyLook();
+
+        private void HandleSizeChanged(float previous, float current) => ApplyLook();
+
+        // Every machine: scale by the synced size and list boss kinds for the health bar (idempotent).
+        private void ApplyLook()
+        {
+            transform.localScale = new Vector3(_baseScale.x * _size.Value, _baseScale.y * _size.Value, _baseScale.z);
+            if (Kind != EnemyKind.Normal && !BossList.Contains(this)) BossList.Add(this);
         }
 
         /// <summary>
         /// Server only, right after spawning: gives the enemy its goal, speed and health. Ignored on a client.
+        /// A boss kind also gets a size and its own damage numbers and shows a health bar on every machine.
         /// </summary>
         /// <param name="target">Point to walk towards; the enemy stops near it.</param>
         /// <param name="speed">Walking speed in world units per second.</param>
         /// <param name="health">Starting health in points.</param>
-        public void Launch(Transform target, float speed, int health)
+        /// <param name="kind">Normal for a wave enemy; a boss kind turns on the shared health bar.</param>
+        /// <param name="size">Size as a multiple of a normal enemy (1 = same).</param>
+        /// <param name="playerDamage">Damage per hit to a touched player; -1 uses <see cref="GameConfig.EnemyPlayerDamage"/>.</param>
+        /// <param name="baseDamage">Damage per hit to the base; -1 uses <see cref="GameConfig.EnemyBaseDamage"/>.</param>
+        public void Launch(Transform target, float speed, int health, EnemyKind kind = EnemyKind.Normal,
+            float size = 1f, int playerDamage = -1, int baseDamage = -1)
         {
             if (!IsServer) return;
+            var config = GameConfig.Instance;
             _target = target;
             _base = target != null ? target.GetComponent<BaseHealth>() : null; // null: walks there but hits nothing
             _speed = speed;
             _health = health;
-            _stopDistance = GameConfig.Instance.EnemyStopDistance;
+            _stopDistance = config.EnemyStopDistance * size; // a bigger body stops proportionally further out
+            _playerDamage = playerDamage >= 0 ? playerDamage : config.EnemyPlayerDamage;
+            _baseDamage = baseDamage >= 0 ? baseDamage : config.EnemyBaseDamage;
+
+            if (kind == EnemyKind.Normal && size == 1f) return; // nothing to tell the clients
+
+            _size.Value = size;
+            _kind.Value = (byte)kind;
+            if (kind != EnemyKind.Normal)
+            {
+                _shownMaxHealth.Value = health;
+                _shownHealth.Value = health;
+            }
+            ApplyLook(); // the host may not get its own change callback in the same call; this is idempotent
         }
 
         /// <summary>
@@ -84,6 +158,7 @@ namespace LastWave.Enemies
             if (amount <= 0 || _health <= 0 || !IsSpawned) return;
 
             _health -= amount;
+            if (Kind != EnemyKind.Normal) _shownHealth.Value = Mathf.Max(_health, 0);
             if (_health > 0) return;
 
             OnDied?.Invoke(this);
@@ -138,7 +213,7 @@ namespace LastWave.Enemies
                 }
                 if (now < nextHit) continue;
 
-                health.TakeDamage(config.EnemyPlayerDamage);
+                health.TakeDamage(_playerDamage);
                 _playerNextHit[life] = now + config.EnemyPlayerHitInterval;
             }
         }
@@ -161,7 +236,7 @@ namespace LastWave.Enemies
             }
             if (Time.time < _nextHitTime) return;
 
-            _base.TakeDamage(config.EnemyBaseDamage);
+            _base.TakeDamage(_baseDamage);
             _nextHitTime = Time.time + config.EnemyBaseHitInterval;
         }
     }

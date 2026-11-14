@@ -31,6 +31,34 @@ namespace LastWave.Enemies
         }
 
         /// <summary>
+        /// The boss entry for a wave: the first entry whose <see cref="BossDefinition.Wave"/> matches, or null
+        /// when the wave has none (or the list is null). One boss per wave.
+        /// </summary>
+        public static BossDefinition FindBoss(IReadOnlyList<BossDefinition> bosses, int waveNumber)
+        {
+            if (bosses == null) return null;
+            for (int i = 0; i < bosses.Count; i++)
+            {
+                if (bosses[i] != null && bosses[i].Wave == waveNumber) return bosses[i];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Whether a wave is over. A wave with a game-ending boss ends exactly when that boss is dead
+        /// (its escorts do not matter); any other wave ends when every enemy has spawned and none is alive.
+        /// </summary>
+        /// <param name="allSpawned">Every enemy of the wave has been spawned.</param>
+        /// <param name="aliveCount">Enemies of the wave still alive (the boss included).</param>
+        /// <param name="hasFinalBoss">The wave has a boss whose death ends the game.</param>
+        /// <param name="finalBossAlive">That boss is alive.</param>
+        public static bool IsWaveOver(bool allSpawned, int aliveCount, bool hasFinalBoss, bool finalBossAlive)
+        {
+            if (hasFinalBoss) return !finalBossAlive;
+            return allSpawned && aliveCount == 0;
+        }
+
+        /// <summary>
         /// The edge for the enemy at <paramref name="enemyIndex"/> (0-based): the set edges in order
         /// Top, Bottom, Left, Right, taken round-robin so every edge gets an equal share.
         /// An empty set counts as all four edges.
@@ -95,6 +123,7 @@ namespace LastWave.Enemies
         private GameConfig _config;
         private NetworkManager _network;
         private GUIStyle _labelStyle;
+        private GUIStyle _bossStyle;
         private int _wave;   // 0 until wave 1 starts; on every machine
         private int _total;
         private bool _allCleared;
@@ -106,8 +135,10 @@ namespace LastWave.Enemies
         public event Action<int> OnWaveCleared;
 
         /// <summary>
-        /// Server only: the last wave's enemies are all dead. This is the "win" event. Nothing listens yet:
-        /// story 006 adds the boss condition and story 007 the win screen.
+        /// Server only: the team has won. Raised when the game-ending boss (<see cref="EnemyKind.Boss"/>) is dead
+        /// (its escorts are despawned first, and <see cref="OnWaveCleared"/> fires for that wave), or, when the
+        /// config has no such boss, when the last wave's enemies are all dead. Every machine learns it through
+        /// the state message ("All waves cleared"). Nothing listens yet: story 007 adds the win screen.
         /// </summary>
         public event Action OnAllWavesCleared;
 
@@ -170,21 +201,30 @@ namespace LastWave.Enemies
                 OnWaveStarted?.Invoke(wave);
 
                 var definition = WavePlanner.GetWave(_config.Waves, wave);
+
+                // Story 006: the wave's boss (if any) comes first, then the table's enemies follow as its escorts.
+                var boss = WavePlanner.FindBoss(_config.Bosses, wave);
+                bool bossEndsGame = boss != null && boss.Kind == EnemyKind.Boss;
+                Enemy bossEnemy = boss != null ? SpawnBoss(boss) : null;
+
                 for (int i = 0; i < definition.Count; i++)
                 {
+                    if (bossEndsGame && IsGone(bossEnemy)) break; // boss already dead: no more escorts
                     SpawnEnemy(definition, i);
                     if (i < definition.Count - 1) yield return new WaitForSeconds(definition.SpawnInterval);
                 }
 
                 // Dead or despawned (destroyed objects compare equal to null).
                 _alive.RemoveAll(IsGone);
-                while (_alive.Count > 0)
+                while (!WavePlanner.IsWaveOver(true, _alive.Count, bossEndsGame && bossEnemy != null, bossEnemy != null && !IsGone(bossEnemy)))
                 {
                     yield return null;
                     _alive.RemoveAll(IsGone);
                 }
 
+                if (bossEndsGame) DespawnEscorts(); // the boss is dead: the team has won, nothing keeps attacking
                 OnWaveCleared?.Invoke(wave);
+                if (bossEndsGame) break; // win now, even when the config put the boss before the last table row
                 if (wave < _total) yield return new WaitForSeconds(_config.WaveRestSeconds);
             }
 
@@ -198,12 +238,35 @@ namespace LastWave.Enemies
         private void SpawnEnemy(WaveDefinition definition, int index)
         {
             var edge = WavePlanner.EdgeForSpawn(definition.Edges, index);
-            Vector2 position = (Vector2)_basePoint.position
-                + WavePlanner.EdgePoint(edge, _config.MapHalfExtents, UnityEngine.Random.Range(-1f, 1f));
+            SpawnAt(edge, UnityEngine.Random.Range(-1f, 1f), definition.Speed, definition.Health);
+        }
+
+        // Same enemy prefab as every wave enemy; only the numbers differ.
+        private Enemy SpawnBoss(BossDefinition boss)
+        {
+            var edge = WavePlanner.EdgeForSpawn(boss.Edge, 0);
+            return SpawnAt(edge, 0f, boss.Speed, boss.Health, boss.Kind, boss.Size, boss.PlayerDamage, boss.BaseDamage);
+        }
+
+        private Enemy SpawnAt(SpawnEdges edge, float along, float speed, int health, EnemyKind kind = EnemyKind.Normal,
+            float size = 1f, int playerDamage = -1, int baseDamage = -1)
+        {
+            Vector2 position = (Vector2)_basePoint.position + WavePlanner.EdgePoint(edge, _config.MapHalfExtents, along);
             var enemy = NetworkObject.InstantiateAndSpawn(_enemyPrefab.gameObject, _network,
                 destroyWithScene: true, position: position, rotation: Quaternion.identity).GetComponent<Enemy>();
-            enemy.Launch(_basePoint, definition.Speed, definition.Health);
+            enemy.Launch(_basePoint, speed, health, kind, size, playerDamage, baseDamage);
             _alive.Add(enemy);
+            return enemy;
+        }
+
+        // Server: the boss died, so the escorts are removed (own call: they would otherwise keep hitting after the win).
+        private void DespawnEscorts()
+        {
+            foreach (var enemy in _alive)
+            {
+                if (!IsGone(enemy)) enemy.NetworkObject.Despawn();
+            }
+            _alive.Clear();
         }
 
         // Server: tell every machine (the host included, through loopback) the current state.
@@ -254,6 +317,45 @@ namespace LastWave.Enemies
                 : _wave == 0 ? "Get ready..."
                 : $"Wave {_wave} / {_total}";
             GUI.Label(new Rect(0f, 8f, Screen.width, _config.WaveLabelFontSize * 2f), text, _labelStyle);
+
+            DrawBossBars();
+        }
+
+        // Story 006: one wide bar per living mini-boss or boss, centred under the wave label, on every machine.
+        // Reads the NetworkVariable-backed numbers on Enemy, so the host and clients draw the same thing.
+        private void DrawBossBars()
+        {
+            _bossStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.LowerCenter,
+                fontSize = _config.BossBarFontSize,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white },
+            };
+
+            float textHeight = _config.BossBarFontSize * 1.5f;
+            float y = 8f + _config.WaveLabelFontSize * 1.6f;
+            var previousColor = GUI.color;
+            foreach (var boss in Enemy.Bosses)
+            {
+                if (boss == null || !boss.IsSpawned || boss.ShownMaxHealth <= 0) continue; // not synced yet, or gone
+
+                string title = boss.Kind == EnemyKind.Boss ? _config.BossLabel : _config.MiniBossLabel;
+                float fraction = Mathf.Clamp01((float)boss.ShownHealth / boss.ShownMaxHealth);
+                var size = _config.BossBarSize;
+                float x = (Screen.width - size.x) * 0.5f;
+
+                GUI.Label(new Rect(x, y, size.x, textHeight), $"{title}  {boss.ShownHealth} / {boss.ShownMaxHealth}", _bossStyle);
+                var back = new Rect(x, y + textHeight, size.x, size.y);
+                GUI.color = _config.BossBarBackColor;
+                GUI.DrawTexture(back, Texture2D.whiteTexture);
+                GUI.color = _config.BossBarFillColor;
+                GUI.DrawTexture(new Rect(back.x, back.y, back.width * fraction, back.height), Texture2D.whiteTexture);
+                GUI.color = previousColor;
+
+                y = back.yMax + 6f; // the next bar, if two are alive, sits below
+            }
+            GUI.color = previousColor;
         }
     }
 }

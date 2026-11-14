@@ -38,6 +38,49 @@ namespace LastWave.Config
         [Min(0f)] public float SpawnInterval = 1f;
     }
 
+    /// <summary>What an <see cref="Enemies.Enemy"/> is. Boss kinds get a health bar everyone sees (story 006).</summary>
+    public enum EnemyKind : byte
+    {
+        /// <summary>An ordinary wave enemy: no bar.</summary>
+        Normal = 0,
+        /// <summary>A mini-boss. It does not end anything when it dies.</summary>
+        MiniBoss = 1,
+        /// <summary>The boss. Its death is the team's win (the rest of its wave is despawned).</summary>
+        Boss = 2,
+    }
+
+    /// <summary>
+    /// One boss entry in <see cref="GameConfig.Bosses"/>: an extra enemy that spawns alongside the normal
+    /// enemies of one wave. The wave row still defines the normal enemies, which act as its escorts.
+    /// </summary>
+    [System.Serializable]
+    public sealed class BossDefinition
+    {
+        /// <summary>1-based wave this boss joins.</summary>
+        [Min(1)] public int Wave = 5;
+
+        /// <summary><see cref="EnemyKind.MiniBoss"/> or <see cref="EnemyKind.Boss"/> (only the Boss ends the game).</summary>
+        public EnemyKind Kind = EnemyKind.MiniBoss;
+
+        /// <summary>Size as a multiple of a normal enemy (1 = same size).</summary>
+        [Min(0.1f)] public float Size = 2f;
+
+        /// <summary>Health in points.</summary>
+        [Min(1)] public int Health = 300;
+
+        /// <summary>Walking speed in world units per second.</summary>
+        [Min(0f)] public float Speed = 1.2f;
+
+        /// <summary>Damage per hit to a standing player it touches (whole points).</summary>
+        [Min(0)] public int PlayerDamage = 20;
+
+        /// <summary>Damage per hit to the base while it stands there (whole points).</summary>
+        [Min(0)] public int BaseDamage = 25;
+
+        /// <summary>Edge it spawns on, in the middle of that edge. If several are set the first (Top, Bottom, Left, Right) is used; None counts as Top.</summary>
+        public SpawnEdges Edge = SpawnEdges.Top;
+    }
+
     /// <summary>
     /// Every tunable value for the room and the placeholder player, in one asset.
     /// The asset lives at <c>Assets/Resources/GameConfig.asset</c> and is created by
@@ -250,6 +293,40 @@ namespace LastWave.Config
         /// Solid colliders push each other apart and rest a hair away from each other, so 0 would miss real contact.
         /// </summary>
         [Min(0f)] public float EnemyContactRange = 0.05f;
+
+        // ---- Story 006: mini-boss and boss ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Every number is a first guess for the designer to tune (the brief only says bigger, tougher, with escorts).
+
+        /// <summary>
+        /// Extra enemies that join a wave, one per wave (the first entry for a wave is used). The wave row
+        /// still gives the normal enemies, which are the escorts. When a <see cref="EnemyKind.Boss"/> dies the team
+        /// wins at once: the rest of that wave is despawned and any later waves are skipped.
+        /// Defaults: a mini-boss in wave 5 and the boss in wave 10 (bullet damage is 10, so 300 health is 30 hits).
+        /// </summary>
+        public BossDefinition[] Bosses =
+        {
+            new BossDefinition { Wave = 5,  Kind = EnemyKind.MiniBoss, Size = 2f, Health = 300,  Speed = 1.2f, PlayerDamage = 20, BaseDamage = 25, Edge = SpawnEdges.Top },
+            new BossDefinition { Wave = 10, Kind = EnemyKind.Boss,     Size = 3f, Health = 1000, Speed = 1.5f, PlayerDamage = 35, BaseDamage = 50, Edge = SpawnEdges.Top },
+        };
+
+        /// <summary>Name shown on the health bar of a <see cref="EnemyKind.MiniBoss"/>.</summary>
+        public string MiniBossLabel = "Mini-boss";
+
+        /// <summary>Name shown on the health bar of the <see cref="EnemyKind.Boss"/>.</summary>
+        public string BossLabel = "Boss";
+
+        /// <summary>Boss health bar size in screen pixels (width, height).</summary>
+        public Vector2 BossBarSize = new Vector2(520f, 22f);
+
+        /// <summary>Boss health bar fill colour.</summary>
+        public Color BossBarFillColor = new Color(0.9f, 0.2f, 0.2f);
+
+        /// <summary>Boss health bar background colour.</summary>
+        public Color BossBarBackColor = new Color(0f, 0f, 0f, 0.7f);
+
+        /// <summary>Font size of the boss name and health text above the bar, in pixels.</summary>
+        [Min(8)] public int BossBarFontSize = 20;
 
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";
