@@ -37,6 +37,9 @@ namespace LastWave.Enemies
         private bool _wasAtBase;
         private float _nextHitTime;
         private Collider2D _collider;
+        private PlayerLife _chased;  // server: the player being chased, or null when walking to the base (story 010)
+        private Collider2D _chasedCollider; // server: cached BodyCollider of _chased
+        private bool _canChase;     // server: false for a boss kind unless the config allows it
         private readonly Dictionary<PlayerLife, float> _playerNextHit = new Dictionary<PlayerLife, float>(); // server
 
         // Story 006. Kind and size are written once by the server so every machine draws a boss the same way
@@ -128,6 +131,8 @@ namespace LastWave.Enemies
             _speed = speed;
             _health = health;
             _stopDistance = config.EnemyStopDistance * size; // a bigger body stops proportionally further out
+            _canChase = kind == EnemyKind.Normal || config.MiniBossAndBossChasePlayers;
+            SetChased(null);
             _playerDamage = playerDamage >= 0 ? playerDamage : config.EnemyPlayerDamage;
             _baseDamage = baseDamage >= 0 ? baseDamage : config.EnemyBaseDamage;
 
@@ -169,14 +174,81 @@ namespace LastWave.Enemies
         {
             if (!IsServer || !IsSpawned || _target == null) return;
 
-            Vector2 toTarget = (Vector2)_target.position - _body.position;
-            bool atTarget = toTarget.magnitude <= _stopDistance;
-            // Stay put once close enough; otherwise walk straight at the target. Never overshoots: the stop
-            // distance is far larger than one frame of walking.
-            _body.linearVelocity = atTarget ? Vector2.zero : toTarget.normalized * _speed;
+            UpdateChaseTarget();
 
-            HitBase(atTarget);
+            Vector2 toTarget;
+            bool atTarget;
+            bool atBase = false;
+            if (_chased != null)
+            {
+                // Chasing a player: walk until the colliders are in contact (the same test HitPlayers uses for
+                // damage), then hold still. The enemy body is kinematic, so nothing else would stop it: without this
+                // it would walk onto the player's centre and jitter, or shove a dynamic player around.
+                // The base is not hit while chasing.
+                bool touching = InContact(_collider.Distance(_chasedCollider), GameConfig.Instance.EnemyContactRange);
+                Vector2 toPlayer = (Vector2)_chased.transform.position - _body.position;
+                _body.linearVelocity = touching ? Vector2.zero : toPlayer.normalized * _speed;
+            }
+            else
+            {
+                // Stay put once close enough to the base; otherwise walk straight at it. Never overshoots: the
+                // stop distance is far larger than one frame of walking.
+                Vector2 toBase = (Vector2)_target.position - _body.position;
+                atBase = toBase.magnitude <= _stopDistance;
+                _body.linearVelocity = atBase ? Vector2.zero : toBase.normalized * _speed;
+            }
+
+            HitBase(atBase);
             HitPlayers();
+        }
+
+        // Story 010, server only. Hysteresis: a chase starts on the nearest standing player within SightRange and
+        // lasts until that player is not standing or is beyond GiveUpRange. No allocation (plain loop, squared distances).
+        private void UpdateChaseTarget()
+        {
+            if (!_canChase)
+            {
+                SetChased(null);
+                return;
+            }
+
+            var config = GameConfig.Instance;
+            Vector2 here = _body.position;
+
+            if (_chased != null)
+            {
+                float giveUp = config.EnemyGiveUpRange;
+                if (_chased.IsStanding && IsChaseable(_chased)
+                    && ((Vector2)_chased.transform.position - here).sqrMagnitude <= giveUp * giveUp) return;
+                SetChased(null); // lost it: fall through and look for another player in sight, else back to the base
+            }
+
+            float sight = config.EnemySightRange;
+            float bestSqr = sight * sight;
+            var players = PlayerLife.All;
+            for (int i = 0; i < players.Count; i++)
+            {
+                var life = players[i];
+                if (life == null || !life.IsStanding || !IsChaseable(life)) continue;
+                float sqr = ((Vector2)life.transform.position - here).sqrMagnitude;
+                if (sqr > bestSqr) continue;
+                bestSqr = sqr;
+                SetChased(life);
+            }
+        }
+
+        // A player with no enabled body collider cannot be touched, so the contact stop could never trigger.
+        private static bool IsChaseable(PlayerLife life)
+        {
+            var collider = life.BodyCollider;
+            return collider != null && collider.enabled;
+        }
+
+        // Caches the chased player's collider when the target changes, so Update does no per-frame lookups.
+        private void SetChased(PlayerLife life)
+        {
+            _chased = life;
+            _chasedCollider = life != null ? life.BodyCollider : null;
         }
 
         // Story 005: an enemy touching a STANDING player hurts it once per hit interval (its own timer per

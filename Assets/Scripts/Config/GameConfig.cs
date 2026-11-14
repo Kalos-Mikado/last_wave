@@ -183,6 +183,15 @@ namespace LastWave.Config
         /// <summary>Enemies walk towards the base point and stop this far from it, in world units.</summary>
         [Min(0f)] public float EnemyStopDistance = 1.2f;
 
+        /// <summary>A normal enemy starts chasing the nearest standing player within this distance, in world units (story 010, guessed: 4).</summary>
+        [Min(0f)] public float EnemySightRange = 4f;
+
+        /// <summary>A chasing enemy gives up and returns to the base when its player is farther than this, in world units. Keep it above <see cref="EnemySightRange"/> (guessed: 7).</summary>
+        [Min(0f)] public float EnemyGiveUpRange = 7f;
+
+        /// <summary>When true, a mini-boss and the boss also chase players; when false they go for the base only (guessed: false).</summary>
+        public bool MiniBossAndBossChasePlayers = false;
+
         /// <summary>Enemy colour. Red is reserved for enemies (brief, Look).</summary>
         public Color EnemyColor = new Color(0.9f, 0.15f, 0.15f);
 

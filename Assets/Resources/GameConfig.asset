@@ -38,6 +38,9 @@ MonoBehaviour:
   WaveRestSeconds: 10
   MapHalfExtents: {x: 10, y: 5.5}
   EnemyStopDistance: 1.2
+  EnemySightRange: 4
+  EnemyGiveUpRange: 7
+  MiniBossAndBossChasePlayers: 0
   EnemyColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
   BaseColor: {r: 0.2, g: 0.45, b: 1, a: 1}
   WaveLabelFontSize: 28
