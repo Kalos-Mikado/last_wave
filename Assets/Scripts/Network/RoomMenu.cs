@@ -1,4 +1,5 @@
 using LastWave.Config;
+using LastWave.UI;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,6 +22,7 @@ namespace LastWave.Network
 
         private RoomService _room;
         private string _codeInput = string.Empty;
+        private GUIStyle _stripStyle;
 
         private void Awake()
         {
@@ -32,6 +34,16 @@ namespace LastWave.Network
         private void OnGUI()
         {
             var config = GameConfig.Instance;
+
+            // Story 007: in the Game scene, once in a room, the big panel shrinks to a corner strip. The Leave
+            // button lives on the end screen. Outside a room (Menu state) the full panel stays, as before.
+            bool inGame = SceneManager.GetActiveScene().name == config.GameSceneName;
+            if (inGame && _room.State != RoomState.Menu)
+            {
+                DrawStrip(config);
+                return;
+            }
+
             GUILayout.BeginArea(new Rect(20, 20, 380, 420), GUI.skin.box);
             GUILayout.Label("Last Wave");
 
@@ -54,17 +66,14 @@ namespace LastWave.Network
                     GUILayout.TextField(_room.JoinCode ?? string.Empty); // a text field so the code can be copied
                     GUILayout.Label($"Players: {_room.PlayerCount}/{config.MaxPlayers}");
                     GUILayout.Label("WASD to walk.");
-                    bool inGame = SceneManager.GetActiveScene().name == config.GameSceneName;
-                    if (!inGame)
+                    // Only the Menu scene reaches here in a room (the Game scene draws the strip above).
+                    if (_room.IsHost)
                     {
-                        if (_room.IsHost)
-                        {
-                            if (GUILayout.Button("Start game")) _room.StartGame();
-                        }
-                        else
-                        {
-                            GUILayout.Label("Waiting for the host to start...");
-                        }
+                        if (GUILayout.Button("Start game")) _room.StartGame();
+                    }
+                    else
+                    {
+                        GUILayout.Label("Waiting for the host to start...");
                     }
                     if (GUILayout.Button("Leave room")) _room.LeaveRoom();
                     break;
@@ -79,6 +88,22 @@ namespace LastWave.Network
                 GUI.color = previous;
             }
             GUILayout.EndArea();
+        }
+
+        // The Game scene's room strip: room code and player count only, in a corner. Its rectangle is registered
+        // so a click on it never fires a shot (UiPointerBlock). While leaving it shows the service's message instead.
+        private void DrawStrip(GameConfig config)
+        {
+            var rect = new Rect(config.RoomStripPosition, config.RoomStripSize);
+            if (Event.current.type == EventType.Repaint) UiPointerBlock.Register(rect);
+
+            _stripStyle ??= new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleLeft };
+            _stripStyle.fontSize = config.RoomStripFontSize;
+
+            string text = _room.State == RoomState.InRoom
+                ? $"{config.RoomStripCodeLabel}: {_room.JoinCode}   {config.RoomStripPlayersLabel}: {_room.PlayerCount}/{config.MaxPlayers}"
+                : _room.Message;
+            GUI.Box(rect, text, _stripStyle);
         }
     }
 }

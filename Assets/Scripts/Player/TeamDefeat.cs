@@ -12,7 +12,7 @@ namespace LastWave.Player
     /// time it sends one Netcode named message, and <see cref="OnAllPlayersDead"/> is raised on every machine
     /// (the host through loopback). Downed players do not count as dead: if everybody left is downed or
     /// dead with nobody standing, the downed ones time out to Dead and the team loses then (documented behaviour).
-    /// Nothing else happens on defeat: the lose screen is story 007.
+    /// Nothing else happens here on defeat: the lose screen is drawn by <c>GameOutcome</c> and <c>EndScreen</c> (story 007).
     /// </summary>
     /// <example>
     /// <code>
@@ -33,10 +33,20 @@ namespace LastWave.Player
 
         /// <summary>
         /// Raised once on every machine when every connected player is dead: on the server and host when the
-        /// message loops back, on a client when it arrives. Nothing listens yet (story 007).
-        /// UNVERIFIED: a client that joins after the defeat is not told (no catch-up request, unlike BaseHealth).
+        /// message loops back, on a client when it arrives. <c>GameOutcome</c> (story 007, server) listens.
+        /// A client that joins after the defeat is not told by this class; <c>GameOutcome</c> catches it up.
         /// </summary>
         public event Action OnAllPlayersDead;
+
+        /// <summary>
+        /// Re-arms the check for a new game (story 007). <c>GameOutcome</c> calls it on every machine when a
+        /// restart happens; without it the one-shot flags would block the next defeat.
+        /// </summary>
+        public void ResetLocal()
+        {
+            _sent = false;
+            _defeated = false;
+        }
 
         private void Start()
         {

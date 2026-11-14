@@ -76,7 +76,7 @@ namespace LastWave.Base
         /// <summary>Starting and highest health, from <see cref="GameConfig.BaseMaxHealth"/>.</summary>
         public int MaxHealth => _config != null ? _config.BaseMaxHealth : GameConfig.Instance.BaseMaxHealth;
 
-        /// <summary>True once health reached 0. Never turns back in this story.</summary>
+        /// <summary>True once health reached 0; turns back only through <see cref="ServerReset"/> (a restart).</summary>
         public bool IsDestroyed => _destroyed;
 
         /// <summary>True while the base is alive and below full health, so repairing does something.</summary>
@@ -90,7 +90,8 @@ namespace LastWave.Base
 
         /// <summary>
         /// Raised once when the base is destroyed: on the server at the moment health reaches 0, on a client
-        /// when the message arrives. Nothing happens in response yet: the lose screen is story 007.
+        /// when the message arrives. Raised again in a later game after <see cref="ServerReset"/>.
+        /// <c>GameOutcome</c> (story 007, server) turns it into the lose screen.
         /// </summary>
         public event Action OnBaseDestroyed;
 
@@ -153,8 +154,18 @@ namespace LastWave.Base
         public void Repair(float perSecond, float deltaSeconds)
         {
             if (!IsServerRunning("BaseHealth.Repair")) return;
-            if (_health <= 0f) return;
+            if (_health <= 0f || Flow.GameOutcome.IsOver) return; // story 007: no repairing after the game ended
             SetServerHealth(BaseRules.ApplyRepair(_health, _config.BaseMaxHealth, perSecond, deltaSeconds));
+        }
+
+        /// <summary>
+        /// Server only (story 007): a new game. Health back to full and the destroyed flag cleared on every machine
+        /// (through the usual state message). Ignored (with a warning) on a client.
+        /// </summary>
+        public void ServerReset()
+        {
+            if (!IsServerRunning("BaseHealth.ServerReset")) return;
+            SetServerHealth(_config.BaseMaxHealth);
         }
 
         private bool IsServerRunning(string caller)

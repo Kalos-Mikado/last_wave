@@ -1,4 +1,6 @@
 using LastWave.Config;
+using LastWave.Flow;
+using LastWave.UI;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -43,6 +45,8 @@ namespace LastWave.Player
             if (SceneManager.GetActiveScene().name != config.GameSceneName) return;
             if (_life != null && !_life.IsStanding) return; // downed or dead: no shooting (story 005)
             if (_repair != null && _repair.IsInteractingLocal) return; // repairing or reviving: no shooting (stories 004, 005)
+            if (GameOutcome.IsOver) return; // story 007: the end screen is up
+            if (UiPointerBlock.IsPointerOver(mouse.position.ReadValue())) return; // story 007: a click on an IMGUI control is not a shot
             if (Time.time < _nextLocalShotTime) return;
 
             _nextLocalShotTime = Time.time + config.FireInterval;
@@ -60,6 +64,7 @@ namespace LastWave.Player
             float sqrLength = direction.sqrMagnitude;
             if (!(sqrLength > Mathf.Epsilon) || float.IsInfinity(sqrLength)) return; // zero, NaN or infinite
 
+            if (GameOutcome.IsOver) return; // story 007: the server refuses every shot once the game ended
             if (_life != null && !_life.IsStanding) return; // the server refuses shots from downed or dead players (story 005)
             if (_repair != null && _repair.IsInteractingOnServer) return; // ...and while repairing or reviving (stories 004, 005)
 

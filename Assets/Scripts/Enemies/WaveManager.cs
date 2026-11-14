@@ -138,7 +138,8 @@ namespace LastWave.Enemies
         /// Server only: the team has won. Raised when the game-ending boss (<see cref="EnemyKind.Boss"/>) is dead
         /// (its escorts are despawned first, and <see cref="OnWaveCleared"/> fires for that wave), or, when the
         /// config has no such boss, when the last wave's enemies are all dead. Every machine learns it through
-        /// the state message ("All waves cleared"). Nothing listens yet: story 007 adds the win screen.
+        /// the state message ("All waves cleared"), but the EVENT itself is raised on the server only (story 007:
+        /// <c>GameOutcome</c> listens here and tells the clients).
         /// </summary>
         public event Action OnAllWavesCleared;
 
@@ -231,6 +232,31 @@ namespace LastWave.Enemies
             _allCleared = true;
             BroadcastState();
             OnAllWavesCleared?.Invoke();
+        }
+
+        /// <summary>
+        /// Server only (story 007): the game ended. Stops the wave runner (no more spawns, no more wave events)
+        /// and despawns every enemy, bosses included, so nothing keeps attacking. Ignored on a client.
+        /// </summary>
+        public void ServerStopAndClear()
+        {
+            if (_network == null || !_network.IsListening || !_network.IsServer) return;
+            StopAllCoroutines();
+            DespawnEscorts(); // despawns everything in _alive: not only escorts, whatever is still alive
+        }
+
+        /// <summary>
+        /// Server only (story 007): a new game. Stops and clears everything, goes back to before wave 1 on every
+        /// machine and starts the runner again (so wave 1 comes after the first-wave delay). Ignored on a client.
+        /// </summary>
+        public void ServerReset()
+        {
+            if (_network == null || !_network.IsListening || !_network.IsServer) return;
+            ServerStopAndClear();
+            _wave = 0;
+            _allCleared = false;
+            BroadcastState();
+            StartCoroutine(RunWaves());
         }
 
         private static bool IsGone(Enemy enemy) => enemy == null || !enemy.IsSpawned;

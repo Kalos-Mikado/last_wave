@@ -137,5 +137,28 @@ MonoBehaviour:
   BossBarFillColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
   BossBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
   BossBarFontSize: 20
+  WinTitle: You win!
+  LoseTitle: Game over
+  LoseBaseText: The base was destroyed
+  LoseEveryoneText: Everyone is down
+  RestartButtonText: Restart
+  BackToMenuButtonText: Back to menu
+  WaitingForHostText: Waiting for the host to restart...
+  EndDimColor: {r: 0, g: 0, b: 0, a: 0.75}
+  EndWinColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  EndLoseColor: {r: 1, g: 0.35, b: 0.3, a: 1}
+  EndTextColor: {r: 1, g: 1, b: 1, a: 1}
+  EndTitleFontSize: 72
+  EndCauseFontSize: 32
+  EndInfoFontSize: 22
+  EndButtonFontSize: 26
+  EndButtonSize: {x: 300, y: 56}
+  EndSpacing: 18
+  RoomStripPosition: {x: 10, y: 10}
+  RoomStripSize: {x: 300, y: 30}
+  RoomStripFontSize: 18
+  RoomStripCodeLabel: Room
+  RoomStripPlayersLabel: Players
+  DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

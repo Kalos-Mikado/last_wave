@@ -149,6 +149,7 @@ namespace LastWave.Network
         /// </summary>
         public async void LeaveRoom()
         {
+            if (_session == null || _leaving) return; // not in a room, or already leaving (a double click on a button)
             var session = _session;
             _leaving = true;
             SetState(RoomState.Busy, "Leaving...");

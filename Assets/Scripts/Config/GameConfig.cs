@@ -328,6 +328,82 @@ namespace LastWave.Config
         /// <summary>Font size of the boss name and health text above the bar, in pixels.</summary>
         [Min(8)] public int BossBarFontSize = 20;
 
+        // ---- Story 007: win/lose screens, restart, room strip ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Texts are plain English like the rest of the UI. Every size, colour and time is a first guess.
+
+        /// <summary>Title of the win screen.</summary>
+        public string WinTitle = "You win!";
+
+        /// <summary>Title of the lose screen.</summary>
+        public string LoseTitle = "Game over";
+
+        /// <summary>Cause line on the lose screen when the base reached 0 health.</summary>
+        public string LoseBaseText = "The base was destroyed";
+
+        /// <summary>Cause line on the lose screen when every player is dead.</summary>
+        public string LoseEveryoneText = "Everyone is down";
+
+        /// <summary>Host-only button that starts a new game in the same room.</summary>
+        public string RestartButtonText = "Restart";
+
+        /// <summary>Button that leaves the room and returns to the menu (everyone).</summary>
+        public string BackToMenuButtonText = "Back to menu";
+
+        /// <summary>Shown instead of the Restart button to everyone but the host.</summary>
+        public string WaitingForHostText = "Waiting for the host to restart...";
+
+        /// <summary>Colour of the full-screen overlay behind the end screen (alpha = how much the game is dimmed).</summary>
+        public Color EndDimColor = new Color(0f, 0f, 0f, 0.75f);
+
+        /// <summary>Colour of the win title.</summary>
+        public Color EndWinColor = new Color(0.45f, 1f, 0.55f);
+
+        /// <summary>Colour of the lose title.</summary>
+        public Color EndLoseColor = new Color(1f, 0.35f, 0.3f);
+
+        /// <summary>Colour of the cause line, the waiting text and the busy text.</summary>
+        public Color EndTextColor = Color.white;
+
+        /// <summary>Font size of the end screen title, in pixels.</summary>
+        [Min(8)] public int EndTitleFontSize = 72;
+
+        /// <summary>Font size of the cause line, in pixels.</summary>
+        [Min(8)] public int EndCauseFontSize = 32;
+
+        /// <summary>Font size of the waiting and busy text, in pixels.</summary>
+        [Min(8)] public int EndInfoFontSize = 22;
+
+        /// <summary>Font size of the end screen buttons, in pixels.</summary>
+        [Min(8)] public int EndButtonFontSize = 26;
+
+        /// <summary>Size of each end screen button in screen pixels (width, height).</summary>
+        public Vector2 EndButtonSize = new Vector2(300f, 56f);
+
+        /// <summary>Vertical gap between the end screen's title, cause line and buttons, in pixels.</summary>
+        [Min(0f)] public float EndSpacing = 18f;
+
+        /// <summary>Top-left corner of the room strip in the Game scene, in screen pixels.</summary>
+        public Vector2 RoomStripPosition = new Vector2(10f, 10f);
+
+        /// <summary>Size of the room strip in the Game scene, in screen pixels (width, height).</summary>
+        public Vector2 RoomStripSize = new Vector2(300f, 30f);
+
+        /// <summary>Font size of the room strip, in pixels.</summary>
+        [Min(8)] public int RoomStripFontSize = 18;
+
+        /// <summary>Word before the join code on the room strip.</summary>
+        public string RoomStripCodeLabel = "Room";
+
+        /// <summary>Word before the player count on the room strip.</summary>
+        public string RoomStripPlayersLabel = "Players";
+
+        /// <summary>
+        /// DEBUG: seconds after the Game scene starts before <c>--force-outcome</c> takes effect, so every
+        /// scene object has started. Only used when that command-line argument is given.
+        /// </summary>
+        [Min(0f)] public float DebugForceOutcomeDelaySeconds = 1f;
+
         /// <summary>Scene with the room menu. Build index 0.</summary>
         public string MenuSceneName = "Menu";
 

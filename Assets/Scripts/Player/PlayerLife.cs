@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using LastWave.Base;
 using LastWave.Config;
 using LastWave.Enemies;
+using LastWave.Flow;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -220,6 +221,7 @@ namespace LastWave.Player
         public void ServerHoldRevive(float deltaSeconds)
         {
             if (!IsServer || !IsSpawned || State != PlayerState.Downed || _reviveTouched) return;
+            if (GameOutcome.IsOver) return; // story 007: no reviving after the game ended
             _reviveTouched = true;
             _reviveSeconds += Mathf.Max(0f, deltaSeconds);
             if (PlayerLifeRules.IsReviveComplete(_reviveSeconds, _config.ReviveHoldSeconds)) Revive();
@@ -255,6 +257,7 @@ namespace LastWave.Player
             }
 
             if (State != PlayerState.Downed) return;
+            if (GameOutcome.IsOver) return; // story 007: the downed countdown is frozen while the end screen is up
 
             // PlayerRepair (execution order -50) already ran this frame, so _reviveTouched is current.
             if (!_reviveTouched) _reviveSeconds = 0f;
@@ -286,11 +289,37 @@ namespace LastWave.Player
         private void HandleWaveCleared(int wave)
         {
             if (!IsServer || !IsSpawned || State != PlayerState.Dead) return;
+            if (GameOutcome.IsOver) return; // story 007: nobody respawns after the game ended
             if (wave >= _config.Waves.Length) return; // all waves cleared: nothing respawns
 
             _health.ServerSetHealth(PlayerLifeRules.RespawnHealth(_config.MaxPlayerHealth, _config.RespawnHealthFraction));
             if (!SetState(PlayerState.Standing)) return;
             RespawnRpc(RespawnPosition());
+        }
+
+        /// <summary>
+        /// Server only (story 007): a new game. Full health, Standing (from Downed or Dead), downed countdown and
+        /// revive progress cleared, and the owner's player teleported back to its start position. Ignored on a client.
+        /// Call it after the game-over state has been cleared.
+        /// </summary>
+        public void ServerResetForNewGame()
+        {
+            if (!IsServer || !IsSpawned) return;
+
+            // Health first, so nobody ever sees a standing player at 0 health (same order as Revive).
+            _health.ServerSetHealth(_config.MaxPlayerHealth);
+            if (State != PlayerState.Standing) SetState(PlayerState.Standing); // Downed and Dead may stand up
+            _downedRemaining.Value = 0f;
+            ResetRevive();
+            RespawnRpc(StartPosition());
+        }
+
+        // Same slot formula as PlayerMovement.OnNetworkSpawn (that file is outside story 007's list, so it is repeated here).
+        private Vector2 StartPosition()
+        {
+            int slot = (int)(OwnerClientId % (ulong)_config.MaxPlayers);
+            float centre = (_config.MaxPlayers - 1) * 0.5f;
+            return new Vector2((slot - centre) * _config.SpawnSpacing, 0f);
         }
 
         private Vector2 RespawnPosition()

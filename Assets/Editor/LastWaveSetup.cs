@@ -3,8 +3,10 @@ using System.Reflection;
 using LastWave.Base;
 using LastWave.Config;
 using LastWave.Enemies;
+using LastWave.Flow;
 using LastWave.Network;
 using LastWave.Player;
+using LastWave.UI;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using Unity.Netcode.Transports.UTP;
@@ -302,6 +304,10 @@ namespace LastWave.EditorTools
 
                 // Story 005: the "everyone is dead" lose condition (scene object, no NetworkObject).
                 new GameObject("TeamDefeat").AddComponent<TeamDefeat>();
+
+                // Story 007: the one place that decides win or lose, and the screens it shows (scene objects, no NetworkObject).
+                new GameObject("GameOutcome").AddComponent<GameOutcome>();
+                new GameObject("EndScreen").AddComponent<EndScreen>();
             }
 
             var path = $"{ScenesFolder}/{sceneName}.unity";
