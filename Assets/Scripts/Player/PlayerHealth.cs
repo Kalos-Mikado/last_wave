@@ -91,10 +91,10 @@ namespace LastWave.Player
 
         // DEBUG PATH (story 002): the host presses the configured key to damage its own player, which
         // shows the server-written health reaching every client. It goes through TakeDamage, so it also
-        // downs the player (story 005). Remove when no longer needed for testing.
+        // downs the player (story 005). Only in the Editor and Development Builds: off in a release build.
         private void Update()
         {
-            if (!IsSpawned || !IsServer || !IsOwner) return;
+            if (!Debug.isDebugBuild || !IsSpawned || !IsServer || !IsOwner) return;
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard[_config.DebugDamageKey].wasPressedThisFrame)
             {

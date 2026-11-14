@@ -136,8 +136,11 @@ namespace LastWave.Flow
                 }
             }
 
-            // DEBUG: inert unless --force-outcome is on the command line. Offline (no room) it only shows the screen.
-            var forced = OutcomeRules.ParseForced(ReadArgument(OutcomeRules.ForceArgument));
+            // DEBUG: inert unless --force-outcome is on the command line, and only in the Editor and
+            // Development Builds (off in a release build). Offline (no room) it only shows the screen.
+            var forced = Debug.isDebugBuild
+                ? OutcomeRules.ParseForced(ReadArgument(OutcomeRules.ForceArgument))
+                : GameResult.None;
             if (forced != GameResult.None && (!_online || _network.IsServer))
             {
                 StartCoroutine(ForceAfterDelay(forced));
