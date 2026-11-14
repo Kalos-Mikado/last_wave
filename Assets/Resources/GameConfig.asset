@@ -45,52 +45,52 @@ MonoBehaviour:
   - Count: 4
     Speed: 1.5
     Health: 20
-    Edges: 1
+    Edges: 8
     SpawnInterval: 1
   - Count: 6
     Speed: 1.6
     Health: 20
-    Edges: 4
+    Edges: 8
     SpawnInterval: 1
   - Count: 10
     Speed: 1.8
     Health: 20
-    Edges: 13
+    Edges: 8
     SpawnInterval: 0.8
   - Count: 12
     Speed: 1.9
     Health: 30
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.8
   - Count: 15
     Speed: 2.1
     Health: 30
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.7
   - Count: 18
     Speed: 2.3
     Health: 30
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.6
   - Count: 22
     Speed: 2.5
     Health: 40
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.5
   - Count: 26
     Speed: 2.7
     Health: 40
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.5
   - Count: 30
     Speed: 2.9
     Health: 50
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.4
   - Count: 36
     Speed: 3.1
     Health: 50
-    Edges: 15
+    Edges: 8
     SpawnInterval: 0.4
   BaseMaxHealth: 500
   EnemyBaseDamage: 5
@@ -122,7 +122,7 @@ MonoBehaviour:
     Speed: 1.2
     PlayerDamage: 20
     BaseDamage: 25
-    Edge: 1
+    Edge: 8
   - Wave: 10
     Kind: 2
     Size: 3
@@ -130,7 +130,7 @@ MonoBehaviour:
     Speed: 1.5
     PlayerDamage: 35
     BaseDamage: 50
-    Edge: 1
+    Edge: 8
   MiniBossLabel: Mini-boss
   BossLabel: Boss
   BossBarSize: {x: 520, y: 22}

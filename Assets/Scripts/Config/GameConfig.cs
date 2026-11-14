@@ -194,21 +194,21 @@ namespace LastWave.Config
 
         /// <summary>
         /// One row per wave, in order; the row count is the number of waves (brief: 10).
-        /// Wave 1 is weak and from one edge, waves 3-4 come from several edges, later waves are faster and bigger.
+        /// Every wave spawns on the right edge (lane layout, story 008); later waves are faster and bigger.
         /// Bullet damage is 10, so Health 20 is two hits.
         /// </summary>
         public WaveDefinition[] Waves =
         {
-            new WaveDefinition { Count = 4,  Speed = 1.5f, Health = 20, Edges = SpawnEdges.Top,                                                 SpawnInterval = 1.0f },
-            new WaveDefinition { Count = 6,  Speed = 1.6f, Health = 20, Edges = SpawnEdges.Left,                                                SpawnInterval = 1.0f },
-            new WaveDefinition { Count = 10, Speed = 1.8f, Health = 20, Edges = SpawnEdges.Top | SpawnEdges.Left | SpawnEdges.Right,            SpawnInterval = 0.8f },
-            new WaveDefinition { Count = 12, Speed = 1.9f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.8f },
-            new WaveDefinition { Count = 15, Speed = 2.1f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.7f },
-            new WaveDefinition { Count = 18, Speed = 2.3f, Health = 30, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.6f },
-            new WaveDefinition { Count = 22, Speed = 2.5f, Health = 40, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.5f },
-            new WaveDefinition { Count = 26, Speed = 2.7f, Health = 40, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.5f },
-            new WaveDefinition { Count = 30, Speed = 2.9f, Health = 50, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.4f },
-            new WaveDefinition { Count = 36, Speed = 3.1f, Health = 50, Edges = SpawnEdges.Top | SpawnEdges.Bottom | SpawnEdges.Left | SpawnEdges.Right, SpawnInterval = 0.4f },
+            new WaveDefinition { Count = 4,  Speed = 1.5f, Health = 20, Edges = SpawnEdges.Right,                                                 SpawnInterval = 1.0f },
+            new WaveDefinition { Count = 6,  Speed = 1.6f, Health = 20, Edges = SpawnEdges.Right,                                                SpawnInterval = 1.0f },
+            new WaveDefinition { Count = 10, Speed = 1.8f, Health = 20, Edges = SpawnEdges.Right,            SpawnInterval = 0.8f },
+            new WaveDefinition { Count = 12, Speed = 1.9f, Health = 30, Edges = SpawnEdges.Right, SpawnInterval = 0.8f },
+            new WaveDefinition { Count = 15, Speed = 2.1f, Health = 30, Edges = SpawnEdges.Right, SpawnInterval = 0.7f },
+            new WaveDefinition { Count = 18, Speed = 2.3f, Health = 30, Edges = SpawnEdges.Right, SpawnInterval = 0.6f },
+            new WaveDefinition { Count = 22, Speed = 2.5f, Health = 40, Edges = SpawnEdges.Right, SpawnInterval = 0.5f },
+            new WaveDefinition { Count = 26, Speed = 2.7f, Health = 40, Edges = SpawnEdges.Right, SpawnInterval = 0.5f },
+            new WaveDefinition { Count = 30, Speed = 2.9f, Health = 50, Edges = SpawnEdges.Right, SpawnInterval = 0.4f },
+            new WaveDefinition { Count = 36, Speed = 3.1f, Health = 50, Edges = SpawnEdges.Right, SpawnInterval = 0.4f },
         };
 
         // ---- Story 004: base health and repair ----
@@ -306,8 +306,8 @@ namespace LastWave.Config
         /// </summary>
         public BossDefinition[] Bosses =
         {
-            new BossDefinition { Wave = 5,  Kind = EnemyKind.MiniBoss, Size = 2f, Health = 300,  Speed = 1.2f, PlayerDamage = 20, BaseDamage = 25, Edge = SpawnEdges.Top },
-            new BossDefinition { Wave = 10, Kind = EnemyKind.Boss,     Size = 3f, Health = 1000, Speed = 1.5f, PlayerDamage = 35, BaseDamage = 50, Edge = SpawnEdges.Top },
+            new BossDefinition { Wave = 5,  Kind = EnemyKind.MiniBoss, Size = 2f, Health = 300,  Speed = 1.2f, PlayerDamage = 20, BaseDamage = 25, Edge = SpawnEdges.Right },
+            new BossDefinition { Wave = 10, Kind = EnemyKind.Boss,     Size = 3f, Health = 1000, Speed = 1.5f, PlayerDamage = 35, BaseDamage = 50, Edge = SpawnEdges.Right },
         };
 
         /// <summary>Name shown on the health bar of a <see cref="EnemyKind.MiniBoss"/>.</summary>
