@@ -105,10 +105,11 @@ MonoBehaviour:
   BaseBarSize: {x: 160, y: 12}
   BaseBarOffsetY: 2
   BaseDamagedThreshold: 0.5
-  BaseWorldWidth: 3
-  BaseOutlinePixelWidth: 1228
-  BaseOutlineBottomPixels: {x: 1121, y: 1125, z: 1135}
-  BaseOutlineCenterPixels: {x: 625, y: 625, z: 622}
+  BaseWorldWidth: 3.2
+  BaseOutlinePixelWidth: 1215
+  BaseOutlineBottomPixels: {x: 1074, y: 1074, z: 1074}
+  BaseOutlineCenterPixels: {x: 626, y: 626, z: 627}
+  BaseHitboxBottomPixels: {x: 985, y: 985, z: 1010}
   BaseGroundOffsetY: -0.75
   BaseColliderSize: {x: 2.9, y: 2.3}
   MapSortingOrder: -100

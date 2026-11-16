@@ -346,23 +346,30 @@ namespace LastWave.Config
         [Range(0f, 1f)] public float BaseDamagedThreshold = 0.5f;
 
         /// <summary>How wide the base is drawn in the game, in world units (outline width of the intact image; default 3).</summary>
-        [Min(0.1f)] public float BaseWorldWidth = 3f;
+        [Min(0.1f)] public float BaseWorldWidth = 3.2f;
 
         /// <summary>Width in image pixels of the intact base outline (about 1228 of the 1254 px image). With <see cref="BaseWorldWidth"/> it sets the pixels per unit shared by all three images.</summary>
-        [Min(1f)] public float BaseOutlinePixelWidth = 1228f;
+        [Min(1f)] public float BaseOutlinePixelWidth = 1215f;
 
         /// <summary>
         /// Row of the lowest outline pixel, counted from the TOP of each 1254 px image, per state
         /// (x = intact, y = damaged, z = destroyed). It becomes the sprite pivot, so the three bases stand on the same
         /// ground line and do not jump when the state changes.
         /// </summary>
-        public Vector3 BaseOutlineBottomPixels = new Vector3(1121f, 1125f, 1135f);
+        public Vector3 BaseOutlineBottomPixels = new Vector3(1074f, 1074f, 1074f);
 
         /// <summary>
         /// Column of the horizontal middle of the outline, counted from the LEFT of each image, per state
         /// (x = intact, y = damaged, z = destroyed). It becomes the sprite pivot, so the base stays centred on <see cref="BasePosition"/>.
         /// </summary>
-        public Vector3 BaseOutlineCenterPixels = new Vector3(625f, 625f, 622f);
+        public Vector3 BaseOutlineCenterPixels = new Vector3(626f, 626f, 627f);
+
+        /// <summary>
+        /// Per state (x intact, y damaged, z destroyed): the image row, counted from the image top, where the base's
+        /// hitbox stops. Everything below it (the flat dirt-and-grass foundation patch drawn around the base's foot) is
+        /// ground the players can walk on, so it is left out when the outline is traced.
+        /// </summary>
+        public Vector3 BaseHitboxBottomPixels = new Vector3(985f, 985f, 1010f);
 
         /// <summary>Where the base's ground line (outline bottom) sits, in world units relative to <see cref="BasePosition"/> (default -0.75: the bottom of the old 1.5 unit square).</summary>
         public float BaseGroundOffsetY = -0.75f;

@@ -45,9 +45,9 @@ namespace LastWave.EditorTools
         private const string EnemyBossSheetPath = "Assets/Art/Enemies/Map1/boss.png";         // story 014
         private static readonly string[] BaseTexturePaths =   // story 015: intact, damaged, destroyed
         {
-            "Assets/Art/Base/base-intact.png",
-            "Assets/Art/Base/base-damaged.png",
-            "Assets/Art/Base/base-destroyed.png",
+            "Assets/Art/Base/Map1/base-intact.png",
+            "Assets/Art/Base/Map1/base-damaged.png",
+            "Assets/Art/Base/Map1/base-destroyed.png",
         };
         private const string Map1TexturePath = "Assets/Art/Maps/map1.png"; // story 015
         private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair

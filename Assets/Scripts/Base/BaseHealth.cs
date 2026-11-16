@@ -269,8 +269,20 @@ namespace LastWave.Base
 
             var sprite = GetSprite(index);
             if (sprite == null) return null;
+
+            // Trace only the building: a copy of the sprite cut off at BaseHitboxBottomPixels, so the flat foundation
+            // patch below it stays walkable. The pivot is kept at the same image point, so the traced shape lands
+            // exactly where the drawn base is.
+            Texture2D texture = sprite.texture;
+            float cutRow = Mathf.Clamp(_config.BaseHitboxBottomPixels[index], 1f, texture.height); // from the image top
+            var cutRect = new Rect(0f, texture.height - cutRow, texture.width, cutRow);
+            Vector2 pivotPixels = sprite.pivot - new Vector2(0f, cutRect.y);                      // same image point
+            var hitboxSprite = Sprite.Create(texture, cutRect,
+                new Vector2(pivotPixels.x / cutRect.width, pivotPixels.y / cutRect.height), sprite.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+            hitboxSprite.name = sprite.name + "-hitbox";
+
             var visual = _renderer.transform;
-            _hitboxes[index] = SpriteHitbox.Get(sprite, visual.localPosition, visual.localScale,
+            _hitboxes[index] = SpriteHitbox.Get(hitboxSprite, visual.localPosition, visual.localScale,
                 _config.BaseHitboxTolerance, _config.HitboxMinPathArea);
             return _hitboxes[index];
         }
