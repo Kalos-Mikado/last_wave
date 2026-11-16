@@ -66,6 +66,11 @@ namespace LastWave.EditorTools
         private const string WavePlateTexturePath = "Assets/Art/UI/wave.png";                 // story 017 (the story's "wave-counter.png")
         private const string RoomPlateTexturePath = "Assets/Art/UI/room-info.png";            // story 017
         private const string HudIconsTexturePath = "Assets/Art/UI/hud-icons.png";             // story 017
+        private const string WinBannerTexturePath = "Assets/Art/UI/banner-VICTORY.png";       // story 018
+        private const string LoseBannerTexturePath = "Assets/Art/UI/banner-DEFEAT.png";       // story 018
+        private const string CardFrameTexturePath = "Assets/Art/UI/Upgrades/frame-blue.png";  // story 018
+        private const string CardFrameHoverTexturePath = "Assets/Art/UI/Upgrades/frame-gold.png"; // story 018
+        private const string UpgradeIconsTexturePath = "Assets/Art/UI/Upgrades/icon-upgrade.png"; // story 018
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -126,12 +131,13 @@ namespace LastWave.EditorTools
             return config;
         }
 
-        // Story 016 (and 017's HUD art): the menu, skin and HUD pictures UiSkin draws. The trimmed ones are cut to their opaque pixels at runtime,
+        // Story 016 (and 017's HUD art, 018's end banners and cards): the menu, skin and HUD pictures UiSkin draws. The trimmed ones are cut to their opaque pixels at runtime,
         // which needs their pixels on the CPU (Read/Write).
         private static void AssignUiArt(GameConfig config)
         {
             foreach (var path in new[] { MenuLogoTexturePath, ButtonTexturePath, ButtonHoverTexturePath, ButtonPressedTexturePath, PanelTexturePath,
-                PlayerBarTexturePath, BaseBarTexturePath, BossBarTexturePath, WavePlateTexturePath, RoomPlateTexturePath, HudIconsTexturePath })
+                PlayerBarTexturePath, BaseBarTexturePath, BossBarTexturePath, WavePlateTexturePath, RoomPlateTexturePath, HudIconsTexturePath,
+                WinBannerTexturePath, LoseBannerTexturePath, CardFrameTexturePath, CardFrameHoverTexturePath, UpgradeIconsTexturePath })
             {
                 EnsureReadable(path);
             }
@@ -148,6 +154,12 @@ namespace LastWave.EditorTools
             config.HudWavePlateTexture = LoadTexture(WavePlateTexturePath);
             config.HudRoomPlateTexture = LoadTexture(RoomPlateTexturePath);
             config.HudIconsTexture = LoadTexture(HudIconsTexturePath);
+            // Story 018: end banners, card frames and the upgrade icon sheet, trimmed or cut at runtime (Read/Write above).
+            config.EndWinBannerTexture = LoadTexture(WinBannerTexturePath);
+            config.EndLoseBannerTexture = LoadTexture(LoseBannerTexturePath);
+            config.UpgradeFrameTexture = LoadTexture(CardFrameTexturePath);
+            config.UpgradeFrameHoverTexture = LoadTexture(CardFrameHoverTexturePath);
+            config.UpgradeIconsTexture = LoadTexture(UpgradeIconsTexturePath);
             EditorUtility.SetDirty(config);
         }
 

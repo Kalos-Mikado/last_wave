@@ -159,23 +159,21 @@ MonoBehaviour:
   BossBarFillColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
   BossBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
   BossBarFontSize: 20
-  WinTitle: You win!
-  LoseTitle: Game over
   LoseBaseText: The base was destroyed
   LoseEveryoneText: Everyone is down
   RestartButtonText: Restart
   BackToMenuButtonText: Back to menu
   WaitingForHostText: Waiting for the host to restart...
   EndDimColor: {r: 0, g: 0, b: 0, a: 0.75}
-  EndWinColor: {r: 0.45, g: 1, b: 0.55, a: 1}
-  EndLoseColor: {r: 1, g: 0.35, b: 0.3, a: 1}
   EndTextColor: {r: 1, g: 1, b: 1, a: 1}
-  EndTitleFontSize: 72
-  EndCauseFontSize: 32
-  EndInfoFontSize: 22
-  EndButtonFontSize: 26
-  EndButtonSize: {x: 300, y: 56}
+  EndCauseFontSize: 34
+  EndInfoFontSize: 26
+  EndButtonFontSize: 28
+  EndButtonSize: {x: 360, y: 72}
   EndSpacing: 18
+  EndWinBannerTexture: {fileID: 2800000, guid: c670d8a47cd48394a9fe8c82d6e62d6e, type: 3}
+  EndLoseBannerTexture: {fileID: 2800000, guid: 6be3cd4be5be5e64ebcffc87ff1661ac, type: 3}
+  EndBannerHeight: 420
   RoomStripPosition: {x: 16, y: 16}
   RoomStripSize: {x: 400, y: 46}
   RoomStripAnchor: {x: 1, y: 0}
@@ -209,19 +207,34 @@ MonoBehaviour:
     IsPercent: 1
   UpgradeChoicesPerRest: 3
   UpgradeHintText: Pick an upgrade (1/2/3)
-  UpgradeCardSize: {x: 220, y: 120}
-  UpgradeCardGap: 16
+  UpgradeCardSize: {x: 240, y: 368}
+  UpgradeCardGap: 24
   UpgradeCardBottomMargin: 60
-  UpgradeCardBorderThickness: 3
-  UpgradeNameFontSize: 26
+  UpgradeNameFontSize: 24
   UpgradeValueFontSize: 20
-  UpgradeKeyFontSize: 18
-  UpgradeHintFontSize: 22
-  UpgradeCardBackColor: {r: 0.1, g: 0.12, b: 0.18, a: 0.92}
-  UpgradeCardHoverColor: {r: 0.2, g: 0.26, b: 0.38, a: 0.96}
-  UpgradeCardBorderColor: {r: 0.95, g: 0.85, b: 0.35, a: 1}
+  UpgradeKeyFontSize: 22
+  UpgradeHintFontSize: 26
   UpgradeNameColor: {r: 1, g: 1, b: 1, a: 1}
   UpgradeValueColor: {r: 0.55, g: 1, b: 0.6, a: 1}
+  UpgradeFrameTexture: {fileID: 2800000, guid: f709cdb6381bfb2418f0c6b2053a46a6, type: 3}
+  UpgradeFrameHoverTexture: {fileID: 2800000, guid: e27d11ce4c8911746a77c42b747e6030, type: 3}
+  UpgradeIconsTexture: {fileID: 2800000, guid: c5cb8a48b2c2a9c4eb6e6e725b863195, type: 3}
+  UpgradeIconGrid: {x: 3, y: 2}
+  UpgradeIconWindow:
+    serializedVersion: 2
+    x: 0.172
+    y: 0.081
+    width: 0.655
+    height: 0.425
+  UpgradeIconPadding: 0.12
+  UpgradeIconBackColor: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  UpgradeTextPanel:
+    serializedVersion: 2
+    x: 0.09
+    y: 0.567
+    width: 0.82
+    height: 0.37
+  UpgradeNameShare: 0.4
   PlayerSheetCellPixels: 256
   PlayerSpritePixelsPerUnit: 190
   PlayerSpriteOffsetY: -0.584

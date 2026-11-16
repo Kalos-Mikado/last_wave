@@ -41,6 +41,10 @@ namespace LastWave.UI
     /// Story 017 adds the HUD: <see cref="Frame"/> and <see cref="Bar"/> draw the frame and plate pictures scaled to the
     /// rectangle's height and 9-sliced across its width, and <see cref="Icon"/> cuts the icon sheet into one texture per icon.
     /// </para>
+    /// <para>
+    /// Story 018 adds <see cref="TrimmedWith"/> (the blue and gold card frames, trimmed to one shared rectangle) and
+    /// <see cref="UpgradeIcon"/> (the upgrade icon sheet, cut the same way as the HUD icons).
+    /// </para>
     /// </summary>
     /// <example>
     /// <code>
@@ -56,7 +60,8 @@ namespace LastWave.UI
         private static readonly Dictionary<Texture2D, Texture2D> Trims = new Dictionary<Texture2D, Texture2D>();
         private static readonly Dictionary<Texture2D, GUIStyle> Frames = new Dictionary<Texture2D, GUIStyle>();
         private static readonly int IconCount = System.Enum.GetValues(typeof(HudIcon)).Length;
-        private static Texture2D[] _icons;
+        private static readonly int UpgradeIconCount = System.Enum.GetValues(typeof(UpgradeKind)).Length;
+        private static Texture2D[] _icons, _upgradeIcons;
         private static GUIStyle _button, _panel, _text, _field;
 
         /// <summary>Screen pixels per reference pixel: the screen height over <see cref="GameConfig.UiReferenceHeight"/>.</summary>
@@ -77,6 +82,18 @@ namespace LastWave.UI
         public static Texture2D Trimmed(Texture2D source)
         {
             if (!Trims.TryGetValue(source, out var trimmed) || trimmed == null) TrimTogether(source);
+            return Trims[source];
+        }
+
+        /// <summary>
+        /// Story 018: <paramref name="source"/> cut to the union of its and <paramref name="partner"/>'s opaque pixels
+        /// (cached; built on first call), so two state pictures of the same size line up exactly. Both must be Read/Write.
+        /// </summary>
+        /// <param name="source">The picture to return, trimmed.</param>
+        /// <param name="partner">The other state picture, the same size as <paramref name="source"/>.</param>
+        public static Texture2D TrimmedWith(Texture2D source, Texture2D partner)
+        {
+            if (!Trims.TryGetValue(source, out var trimmed) || trimmed == null) TrimTogether(source, partner);
             return Trims[source];
         }
 
@@ -220,8 +237,23 @@ namespace LastWave.UI
         /// <param name="icon">Which icon.</param>
         public static Texture2D Icon(HudIcon icon)
         {
-            if (_icons == null || _icons[0] == null) _icons = CutIcons(GameConfig.Instance.HudIconsTexture, GameConfig.Instance.HudIconGrid);
+            if (_icons == null || _icons[0] == null) _icons = CutIcons(GameConfig.Instance.HudIconsTexture, GameConfig.Instance.HudIconGrid, IconCount);
             return _icons[(int)icon];
+        }
+
+        /// <summary>
+        /// Story 018: one upgrade icon, cut from <see cref="GameConfig.UpgradeIconsTexture"/> (cached; built on first call):
+        /// cell <c>(int)kind</c> of the <see cref="GameConfig.UpgradeIconGrid"/>, row by row from the top-left, trimmed
+        /// to its opaque pixels.
+        /// </summary>
+        /// <param name="kind">Which upgrade.</param>
+        public static Texture2D UpgradeIcon(UpgradeKind kind)
+        {
+            if (_upgradeIcons == null || _upgradeIcons[0] == null)
+            {
+                _upgradeIcons = CutIcons(GameConfig.Instance.UpgradeIconsTexture, GameConfig.Instance.UpgradeIconGrid, UpgradeIconCount);
+            }
+            return _upgradeIcons[(int)kind];
         }
 
         /// <summary>Draws a HUD icon keeping its aspect inside <paramref name="rect"/> (screen pixels). Draws on repaint only.</summary>
@@ -244,12 +276,12 @@ namespace LastWave.UI
         }
 
         // Each icon: its grid cell (row 0 at the top of the picture) cut to the opaque pixels inside it.
-        private static Texture2D[] CutIcons(Texture2D sheet, Vector2Int grid)
+        private static Texture2D[] CutIcons(Texture2D sheet, Vector2Int grid, int count)
         {
             int w = sheet.width, h = sheet.height;
             var px = sheet.GetPixels32();
-            var icons = new Texture2D[IconCount];
-            for (int i = 0; i < IconCount; i++)
+            var icons = new Texture2D[count];
+            for (int i = 0; i < count; i++)
             {
                 int col = i % grid.x, row = i / grid.x;
                 int x0 = col * w / grid.x, x1 = (col + 1) * w / grid.x;
@@ -266,7 +298,7 @@ namespace LastWave.UI
                         if (y > yMax) yMax = y;
                     }
                 }
-                icons[i] = Copy(px, w, xMin, yMin, xMax - xMin + 1, yMax - yMin + 1, $"{sheet.name} {(HudIcon)i}");
+                icons[i] = Copy(px, w, xMin, yMin, xMax - xMin + 1, yMax - yMin + 1, $"{sheet.name} {i}");
             }
             return icons;
         }

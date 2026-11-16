@@ -13,7 +13,10 @@ namespace LastWave.UI
     /// is picked by clicking it or pressing its number key (1, 2, 3). Nothing is drawn when there is no offer or
     /// once the game has ended. Card rectangles are registered with <see cref="UiPointerBlock"/>, so a click on a
     /// card never fires a shot (story 007 mechanism). It holds no game state: the server decides every pick.
-    /// Texts, sizes and colours come from <see cref="GameConfig"/>.
+    /// Story 018: each card is the blue frame picture (gold while the mouse is over it) with the upgrade's icon in the
+    /// frame's icon window (on a dark fill, so the game never shows through) and the name and value in its lower panel.
+    /// Pictures, texts, sizes (reference pixels, see <see cref="UiSkin.Scale"/>), the window and panel rectangles
+    /// (fractions of the card) and colours come from <see cref="GameConfig"/>.
     /// </summary>
     /// <example>
     /// Scene object in the Game scene (added by <c>LastWaveSetup.Run</c>); nothing to configure.
@@ -23,15 +26,11 @@ namespace LastWave.UI
         // Above the health bars; below the end screen (-1000).
         private const int GuiDepth = -100;
 
-        private GUIStyle _nameStyle;
-        private GUIStyle _valueStyle;
-        private GUIStyle _keyStyle;
-        private GUIStyle _hintStyle;
-
         // Card text, rebuilt only when the offer changes (no string building per frame).
         private readonly string[] _names = new string[UpgradeRules.MaxChoices];
         private readonly string[] _values = new string[UpgradeRules.MaxChoices];
         private readonly string[] _keys = new string[UpgradeRules.MaxChoices];
+        private readonly UpgradeKind[] _kinds = new UpgradeKind[UpgradeRules.MaxChoices];
         private int _builtVersion = -1;
         private PlayerUpgrades _builtFor;
 
@@ -65,43 +64,32 @@ namespace LastWave.UI
 
             GUI.depth = GuiDepth; // every OnGUI call, layout and repaint alike
             var config = GameConfig.Instance;
-            BuildStyles(config);
             RebuildTextIfNeeded(upgrades, config);
 
             int count = upgrades.OfferCount;
-            Vector2 size = config.UpgradeCardSize;
-            float gap = config.UpgradeCardGap;
+            float s = UiSkin.Scale;
+            Vector2 size = config.UpgradeCardSize * s;
+            float gap = config.UpgradeCardGap * s;
             float totalWidth = count * size.x + (count - 1) * gap;
             float left = (Screen.width - totalWidth) * 0.5f;
-            float top = Screen.height - config.UpgradeCardBottomMargin - size.y;
+            float top = Screen.height - config.UpgradeCardBottomMargin * s - size.y;
             bool repaint = Event.current.type == EventType.Repaint;
 
             if (repaint)
             {
-                float hintHeight = config.UpgradeHintFontSize * 1.6f;
-                GUI.Label(new Rect(0f, top - hintHeight - gap, Screen.width, hintHeight), config.UpgradeHintText, _hintStyle);
+                float hintHeight = config.UpgradeHintFontSize * 1.6f * s;
+                UiSkin.Label(new Rect(0f, top - hintHeight - gap, Screen.width, hintHeight), config.UpgradeHintText,
+                    config.UpgradeHintFontSize, TextAnchor.MiddleCenter, config.UpgradeNameColor, FontStyle.Bold);
             }
 
-            var previousColor = GUI.color;
             Vector2 mouse = Event.current.mousePosition;
-            float border = config.UpgradeCardBorderThickness;
             for (int i = 0; i < count; i++)
             {
                 var rect = new Rect(left + i * (size.x + gap), top, size.x, size.y);
-
                 if (repaint)
                 {
                     UiPointerBlock.Register(rect); // a click on a card is not a shot
-                    GUI.color = config.UpgradeCardBorderColor;
-                    GUI.DrawTexture(rect, Texture2D.whiteTexture);
-                    GUI.color = rect.Contains(mouse) ? config.UpgradeCardHoverColor : config.UpgradeCardBackColor;
-                    GUI.DrawTexture(new Rect(rect.x + border, rect.y + border, rect.width - 2f * border, rect.height - 2f * border),
-                        Texture2D.whiteTexture);
-                    GUI.color = previousColor;
-
-                    GUI.Label(new Rect(rect.x + 8f, rect.y + 4f, rect.width - 16f, config.UpgradeKeyFontSize * 1.6f), _keys[i], _keyStyle);
-                    GUI.Label(new Rect(rect.x, rect.y + size.y * 0.22f, rect.width, config.UpgradeNameFontSize * 1.6f), _names[i], _nameStyle);
-                    GUI.Label(new Rect(rect.x, rect.y + size.y * 0.58f, rect.width, config.UpgradeValueFontSize * 1.6f), _values[i], _valueStyle);
+                    DrawCard(rect, i, rect.Contains(mouse), config);
                 }
 
                 // Invisible button on top: it receives the click. The server confirms by closing the offer.
@@ -110,8 +98,42 @@ namespace LastWave.UI
                     upgrades.RequestPick(i);
                 }
             }
-            GUI.color = previousColor;
         }
+
+        // Dark fill and icon in the window first, then the frame over them (its window is a hole), then the text.
+        private void DrawCard(Rect card, int index, bool hover, GameConfig config)
+        {
+            var window = Part(card, config.UpgradeIconWindow);
+            var previousColor = GUI.color;
+            GUI.color = config.UpgradeIconBackColor;
+            GUI.DrawTexture(window, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+
+            float padX = window.width * config.UpgradeIconPadding, padY = window.height * config.UpgradeIconPadding;
+            var iconArea = new Rect(window.x + padX, window.y + padY, window.width - 2f * padX, window.height - 2f * padY);
+            GUI.DrawTexture(iconArea, UiSkin.UpgradeIcon(_kinds[index]), ScaleMode.ScaleToFit);
+
+            var frame = hover
+                ? UiSkin.TrimmedWith(config.UpgradeFrameHoverTexture, config.UpgradeFrameTexture)
+                : UiSkin.TrimmedWith(config.UpgradeFrameTexture, config.UpgradeFrameHoverTexture);
+            GUI.DrawTexture(card, frame, ScaleMode.StretchToFill);
+
+            float keySize = config.UpgradeKeyFontSize * 1.6f * UiSkin.Scale;
+            UiSkin.Label(new Rect(window.x + padX * 0.4f, window.y + padY * 0.3f, keySize, keySize), _keys[index],
+                config.UpgradeKeyFontSize, TextAnchor.UpperLeft, config.UpgradeValueColor, FontStyle.Bold);
+
+            var panel = Part(card, config.UpgradeTextPanel);
+            float nameHeight = panel.height * config.UpgradeNameShare;
+            UiSkin.Label(new Rect(panel.x, panel.y, panel.width, nameHeight), _names[index], config.UpgradeNameFontSize,
+                TextAnchor.MiddleCenter, config.UpgradeNameColor, FontStyle.Bold);
+            UiSkin.Label(new Rect(panel.x, panel.y + nameHeight, panel.width, panel.height - nameHeight), _values[index],
+                config.UpgradeValueFontSize, TextAnchor.UpperCenter, config.UpgradeValueColor);
+        }
+
+        // A rectangle given as fractions of the card, in screen pixels.
+        private static Rect Part(Rect card, Rect fraction) =>
+            new Rect(card.x + fraction.x * card.width, card.y + fraction.y * card.height,
+                fraction.width * card.width, fraction.height * card.height);
 
         private void RebuildTextIfNeeded(PlayerUpgrades upgrades, GameConfig config)
         {
@@ -133,26 +155,8 @@ namespace LastWave.UI
                 _names[i] = name;
                 _values[i] = amount + " " + name.ToLowerInvariant();
                 _keys[i] = (i + 1).ToString();
+                _kinds[i] = upgrades.GetOfferKind(i);
             }
-        }
-
-        private void BuildStyles(GameConfig config)
-        {
-            _nameStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            _nameStyle.fontSize = config.UpgradeNameFontSize;
-            _nameStyle.normal.textColor = config.UpgradeNameColor;
-
-            _valueStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-            _valueStyle.fontSize = config.UpgradeValueFontSize;
-            _valueStyle.normal.textColor = config.UpgradeValueColor;
-
-            _keyStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperLeft, fontStyle = FontStyle.Bold };
-            _keyStyle.fontSize = config.UpgradeKeyFontSize;
-            _keyStyle.normal.textColor = config.UpgradeValueColor;
-
-            _hintStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            _hintStyle.fontSize = config.UpgradeHintFontSize;
-            _hintStyle.normal.textColor = config.UpgradeNameColor;
         }
     }
 }

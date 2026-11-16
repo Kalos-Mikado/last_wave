@@ -46,10 +46,12 @@ namespace LastWave.UI
 
     /// <summary>
     /// The win and lose screens (brief MVP feature 7), drawn in IMGUI on every machine while
-    /// <see cref="GameOutcome.Result"/> is not None: a full-screen dim, a big title, the cause on a loss,
-    /// a Restart button for the host only (everyone else sees a waiting text) and a Back to menu button for
-    /// everyone. It draws above every other IMGUI (lowest GUI depth). Texts, sizes and colours come from
-    /// <see cref="GameConfig"/>. It holds no game state: it only reads <see cref="GameOutcome"/> and asks it to restart.
+    /// <see cref="GameOutcome.Result"/> is not None: a full-screen dim, the VICTORY or DEFEAT banner (story 018) centred,
+    /// the cause under it on a loss, a Restart button for the host only (everyone else sees a waiting text) and a Back
+    /// to menu button for everyone, both <see cref="UiSkin.Button"/> art buttons. The banner, cause and buttons are
+    /// stacked and centred on the screen. It draws above every other IMGUI (lowest GUI depth). Pictures, texts, sizes
+    /// (reference pixels, see <see cref="UiSkin.Scale"/>) and colours come from <see cref="GameConfig"/>. It holds no
+    /// game state: it only reads <see cref="GameOutcome"/> and asks it to restart.
     /// </summary>
     /// <example>
     /// Scene object in the Game scene (added by <c>LastWaveSetup.Run</c>); nothing to configure.
@@ -60,10 +62,6 @@ namespace LastWave.UI
         private const int GuiDepth = -1000;
 
         private RoomService _room;
-        private GUIStyle _titleStyle;
-        private GUIStyle _causeStyle;
-        private GUIStyle _infoStyle;
-        private GUIStyle _buttonStyle;
 
         private void OnGUI()
         {
@@ -72,7 +70,6 @@ namespace LastWave.UI
 
             GUI.depth = GuiDepth; // every OnGUI call, layout and repaint alike
             var config = GameConfig.Instance;
-            BuildStyles(config);
 
             var network = NetworkManager.Singleton;
             bool online = network != null && network.IsListening;
@@ -81,57 +78,64 @@ namespace LastWave.UI
             bool busy = _room != null && _room.State == RoomState.Busy; // leaving: no second click
 
             bool win = outcome.Result == GameResult.Win;
-            var previousColor = GUI.color;
-            if (Event.current.type == EventType.Repaint)
+            bool repaint = Event.current.type == EventType.Repaint;
+            if (repaint)
             {
+                var previousColor = GUI.color;
                 GUI.color = config.EndDimColor;
                 GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
                 GUI.color = previousColor;
             }
 
-            float gap = config.EndSpacing;
-            float titleHeight = config.EndTitleFontSize * 1.4f;
-            float causeHeight = win ? 0f : config.EndCauseFontSize * 1.5f + gap;
-            float infoHeight = config.EndInfoFontSize * 1.6f;
-            Vector2 button = config.EndButtonSize;
+            // Layout in screen pixels from reference-pixel config.
+            float s = UiSkin.Scale;
+            var banner = UiSkin.Trimmed(win ? config.EndWinBannerTexture : config.EndLoseBannerTexture);
+            float bannerHeight = config.EndBannerHeight * s;
+            float bannerWidth = bannerHeight * banner.width / banner.height;
+            float gap = config.EndSpacing * s;
+            float causeLine = config.EndCauseFontSize * 1.5f * s;
+            float causeHeight = win ? 0f : causeLine + gap;
+            float infoHeight = config.EndInfoFontSize * 1.6f * s;
+            Vector2 button = config.EndButtonSize * s;
             float restartHeight = isHost ? button.y : infoHeight;
-            float total = titleHeight + gap + causeHeight + restartHeight + gap + button.y;
+            float total = bannerHeight + gap + causeHeight + restartHeight + gap + button.y;
             float y = (Screen.height - total) * 0.5f;
             float centerX = Screen.width * 0.5f;
 
-            _titleStyle.normal.textColor = win ? config.EndWinColor : config.EndLoseColor;
-            GUI.Label(new Rect(0f, y, Screen.width, titleHeight), win ? config.WinTitle : config.LoseTitle, _titleStyle);
-            y += titleHeight + gap;
+            if (repaint) GUI.DrawTexture(new Rect(centerX - bannerWidth * 0.5f, y, bannerWidth, bannerHeight), banner, ScaleMode.ScaleToFit);
+            y += bannerHeight + gap;
 
             if (!win)
             {
                 string cause = outcome.Result == GameResult.LoseBase ? config.LoseBaseText : config.LoseEveryoneText;
-                GUI.Label(new Rect(0f, y, Screen.width, config.EndCauseFontSize * 1.5f), cause, _causeStyle);
+                UiSkin.Label(new Rect(0f, y, Screen.width, causeLine), cause, config.EndCauseFontSize, TextAnchor.MiddleCenter,
+                    config.EndTextColor, FontStyle.Bold);
                 y += causeHeight;
             }
 
             if (busy)
             {
                 // Leaving the room: the room service's text ("Leaving...").
-                GUI.Label(new Rect(0f, y, Screen.width, infoHeight), _room.Message, _infoStyle);
-                y += restartHeight + gap + button.y;
+                UiSkin.Label(new Rect(0f, y, Screen.width, infoHeight), _room.Message, config.EndInfoFontSize, TextAnchor.MiddleCenter,
+                    config.EndTextColor);
             }
             else
             {
                 if (isHost)
                 {
-                    if (GUI.Button(new Rect(centerX - button.x * 0.5f, y, button.x, button.y), config.RestartButtonText, _buttonStyle))
+                    if (UiSkin.Button(new Rect(centerX - button.x * 0.5f, y, button.x, button.y), config.RestartButtonText, config.EndButtonFontSize))
                     {
                         outcome.ServerRestart();
                     }
                 }
                 else
                 {
-                    GUI.Label(new Rect(0f, y, Screen.width, infoHeight), config.WaitingForHostText, _infoStyle);
+                    UiSkin.Label(new Rect(0f, y, Screen.width, infoHeight), config.WaitingForHostText, config.EndInfoFontSize,
+                        TextAnchor.MiddleCenter, config.EndTextColor);
                 }
                 y += restartHeight + gap;
 
-                if (GUI.Button(new Rect(centerX - button.x * 0.5f, y, button.x, button.y), config.BackToMenuButtonText, _buttonStyle))
+                if (UiSkin.Button(new Rect(centerX - button.x * 0.5f, y, button.x, button.y), config.BackToMenuButtonText, config.EndButtonFontSize))
                 {
                     if (_room != null && _room.State == RoomState.InRoom) _room.LeaveRoom();
                 }
@@ -140,23 +144,6 @@ namespace LastWave.UI
             // A click sponge drawn last: IMGUI gives a click to the first control under it in code order, so the
             // real buttons above win and every other click is swallowed instead of reaching IMGUI below.
             GUI.Button(new Rect(0f, 0f, Screen.width, Screen.height), GUIContent.none, GUIStyle.none);
-        }
-
-        private void BuildStyles(GameConfig config)
-        {
-            _titleStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            _titleStyle.fontSize = config.EndTitleFontSize;
-
-            _causeStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-            _causeStyle.fontSize = config.EndCauseFontSize;
-            _causeStyle.normal.textColor = config.EndTextColor;
-
-            _infoStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-            _infoStyle.fontSize = config.EndInfoFontSize;
-            _infoStyle.normal.textColor = config.EndTextColor;
-
-            _buttonStyle ??= new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            _buttonStyle.fontSize = config.EndButtonFontSize;
         }
     }
 }

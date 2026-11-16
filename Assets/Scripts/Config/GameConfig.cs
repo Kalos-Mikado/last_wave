@@ -541,12 +541,6 @@ namespace LastWave.Config
         // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
         // Texts are plain English like the rest of the UI. Every size, colour and time is a first guess.
 
-        /// <summary>Title of the win screen.</summary>
-        public string WinTitle = "You win!";
-
-        /// <summary>Title of the lose screen.</summary>
-        public string LoseTitle = "Game over";
-
         /// <summary>Cause line on the lose screen when the base reached 0 health.</summary>
         public string LoseBaseText = "The base was destroyed";
 
@@ -565,32 +559,32 @@ namespace LastWave.Config
         /// <summary>Colour of the full-screen overlay behind the end screen (alpha = how much the game is dimmed).</summary>
         public Color EndDimColor = new Color(0f, 0f, 0f, 0.75f);
 
-        /// <summary>Colour of the win title.</summary>
-        public Color EndWinColor = new Color(0.45f, 1f, 0.55f);
-
-        /// <summary>Colour of the lose title.</summary>
-        public Color EndLoseColor = new Color(1f, 0.35f, 0.3f);
-
         /// <summary>Colour of the cause line, the waiting text and the busy text.</summary>
         public Color EndTextColor = Color.white;
 
-        /// <summary>Font size of the end screen title, in pixels.</summary>
-        [Min(8)] public int EndTitleFontSize = 72;
+        /// <summary>Font size of the cause line under the banner. Story 018: reference pixels (see <see cref="UiReferenceHeight"/>).</summary>
+        [Min(8)] public int EndCauseFontSize = 34;
 
-        /// <summary>Font size of the cause line, in pixels.</summary>
-        [Min(8)] public int EndCauseFontSize = 32;
+        /// <summary>Font size of the waiting and busy text. Story 018: reference pixels.</summary>
+        [Min(8)] public int EndInfoFontSize = 26;
 
-        /// <summary>Font size of the waiting and busy text, in pixels.</summary>
-        [Min(8)] public int EndInfoFontSize = 22;
+        /// <summary>Font size of the end screen buttons (UiSkin art buttons). Story 018: reference pixels.</summary>
+        [Min(8)] public int EndButtonFontSize = 28;
 
-        /// <summary>Font size of the end screen buttons, in pixels.</summary>
-        [Min(8)] public int EndButtonFontSize = 26;
+        /// <summary>Size of each end screen button (width, height). Story 018: reference pixels, same height as the menu buttons.</summary>
+        public Vector2 EndButtonSize = new Vector2(360f, 72f);
 
-        /// <summary>Size of each end screen button in screen pixels (width, height).</summary>
-        public Vector2 EndButtonSize = new Vector2(300f, 56f);
-
-        /// <summary>Vertical gap between the end screen's title, cause line and buttons, in pixels.</summary>
+        /// <summary>Vertical gap between the end screen's banner, cause line and buttons. Story 018: reference pixels.</summary>
         [Min(0f)] public float EndSpacing = 18f;
+
+        /// <summary>Story 018: banner shown on a win (Art/UI/banner-VICTORY.png), trimmed to its opaque pixels at runtime. Must be Read/Write (LastWaveSetup sets it).</summary>
+        public Texture2D EndWinBannerTexture;
+
+        /// <summary>Story 018: banner shown on a loss (Art/UI/banner-DEFEAT.png), trimmed like the win banner. Must be Read/Write.</summary>
+        public Texture2D EndLoseBannerTexture;
+
+        /// <summary>Story 018: height of the end banner in reference pixels; its width follows the trimmed picture's aspect. The banner, cause line and buttons are stacked and centred on the screen.</summary>
+        [Min(1f)] public float EndBannerHeight = 420f;
 
         /// <summary>
         /// Gap between the room strip and the screen corner given by <see cref="RoomStripAnchor"/>, in reference pixels (story 017)
@@ -638,44 +632,64 @@ namespace LastWave.Config
         /// <summary>Hint above the cards.</summary>
         public string UpgradeHintText = "Pick an upgrade (1/2/3)";
 
-        /// <summary>Size of one card in screen pixels (width, height).</summary>
-        public Vector2 UpgradeCardSize = new Vector2(220f, 120f);
+        /// <summary>Size of one card (width, height). Story 018: reference pixels; keep the trimmed frame's aspect (about 970 x 1488).</summary>
+        public Vector2 UpgradeCardSize = new Vector2(240f, 368f);
 
-        /// <summary>Gap between two cards, in pixels.</summary>
-        [Min(0f)] public float UpgradeCardGap = 16f;
+        /// <summary>Gap between two cards. Story 018: reference pixels.</summary>
+        [Min(0f)] public float UpgradeCardGap = 24f;
 
-        /// <summary>Distance from the bottom of the screen to the bottom of the cards, in pixels.</summary>
+        /// <summary>Distance from the bottom of the screen to the bottom of the cards. Story 018: reference pixels.</summary>
         [Min(0f)] public float UpgradeCardBottomMargin = 60f;
 
-        /// <summary>Thickness of the card border, in pixels.</summary>
-        [Min(0f)] public float UpgradeCardBorderThickness = 3f;
+        /// <summary>Font size of the card name, in the frame's text panel. Story 018: reference pixels.</summary>
+        [Min(8)] public int UpgradeNameFontSize = 24;
 
-        /// <summary>Font size of the card name, in pixels.</summary>
-        [Min(8)] public int UpgradeNameFontSize = 26;
-
-        /// <summary>Font size of the card value line, in pixels.</summary>
+        /// <summary>Font size of the card value line, under the name. Story 018: reference pixels.</summary>
         [Min(8)] public int UpgradeValueFontSize = 20;
 
-        /// <summary>Font size of the key number in a card corner, in pixels.</summary>
-        [Min(8)] public int UpgradeKeyFontSize = 18;
+        /// <summary>Font size of the key number in the icon window's top-left corner. Story 018: reference pixels.</summary>
+        [Min(8)] public int UpgradeKeyFontSize = 22;
 
-        /// <summary>Font size of the hint, in pixels.</summary>
-        [Min(8)] public int UpgradeHintFontSize = 22;
-
-        /// <summary>Card background colour.</summary>
-        public Color UpgradeCardBackColor = new Color(0.10f, 0.12f, 0.18f, 0.92f);
-
-        /// <summary>Card background colour while the mouse is over it.</summary>
-        public Color UpgradeCardHoverColor = new Color(0.20f, 0.26f, 0.38f, 0.96f);
-
-        /// <summary>Card border colour.</summary>
-        public Color UpgradeCardBorderColor = new Color(0.95f, 0.85f, 0.35f, 1f);
+        /// <summary>Font size of the hint. Story 018: reference pixels.</summary>
+        [Min(8)] public int UpgradeHintFontSize = 26;
 
         /// <summary>Colour of the card name and the hint.</summary>
         public Color UpgradeNameColor = Color.white;
 
         /// <summary>Colour of the card value line and key number.</summary>
         public Color UpgradeValueColor = new Color(0.55f, 1f, 0.6f, 1f);
+
+        // Story 018: card art. The frames are trimmed together to their opaque pixels at runtime; the rectangles below
+        // are fractions of the trimmed frame (x, y from its top-left; width, height), measured from the 1024 x 1536
+        // source (opaque area about x 27-996, y 24-1511; magenta icon hole about x 198-825, y 148-772; text panel
+        // about x 100-920, y 852-1434).
+
+        /// <summary>Story 018: card frame (Art/UI/Upgrades/frame-blue.png). Its icon window is a transparent hole. Must be Read/Write (LastWaveSetup sets it).</summary>
+        public Texture2D UpgradeFrameTexture;
+
+        /// <summary>Story 018: card frame drawn instead of <see cref="UpgradeFrameTexture"/> while the mouse is over the card (Art/UI/Upgrades/frame-gold.png). Must be Read/Write.</summary>
+        public Texture2D UpgradeFrameHoverTexture;
+
+        /// <summary>Story 018: the upgrade icon sheet (Art/UI/Upgrades/icon-upgrade.png), cut into <see cref="UpgradeIconGrid"/> cells in <see cref="UpgradeKind"/> order. Must be Read/Write.</summary>
+        public Texture2D UpgradeIconsTexture;
+
+        /// <summary>Story 018: columns and rows of the upgrade icon sheet (3 x 2 cells of 512 px: Damage, FireRate, MoveSpeed / MaxHealth, RepairSpeed, ReviveSpeed).</summary>
+        public Vector2Int UpgradeIconGrid = new Vector2Int(3, 2);
+
+        /// <summary>Story 018: the frame's icon window as fractions of the card. Filled with <see cref="UpgradeIconBackColor"/> before the frame is drawn over it, so it is a few pixels larger than the hole and its edges sit under the frame's line.</summary>
+        public Rect UpgradeIconWindow = new Rect(0.172f, 0.081f, 0.655f, 0.425f);
+
+        /// <summary>Story 018: the space left around the icon inside <see cref="UpgradeIconWindow"/>, as a fraction of the window's width and height on each side.</summary>
+        [Range(0f, 0.4f)] public float UpgradeIconPadding = 0.12f;
+
+        /// <summary>Story 018: fill behind the icon, so the window never shows the game behind the card.</summary>
+        public Color UpgradeIconBackColor = new Color(0.05f, 0.07f, 0.10f, 1f);
+
+        /// <summary>Story 018: where the name and value text go, as fractions of the card: the frame's lower panel, inset from its edges. The name takes the top <see cref="UpgradeNameShare"/>, the value the rest.</summary>
+        public Rect UpgradeTextPanel = new Rect(0.09f, 0.567f, 0.82f, 0.37f);
+
+        /// <summary>Story 018: share of <see cref="UpgradeTextPanel"/>'s height given to the name (the value line wraps in the rest).</summary>
+        [Range(0.1f, 0.9f)] public float UpgradeNameShare = 0.4f;
 
         // ---- Story 013: player art and animation ----
         // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
