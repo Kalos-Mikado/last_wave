@@ -206,6 +206,23 @@ MonoBehaviour:
   UpgradeCardBorderColor: {r: 0.95, g: 0.85, b: 0.35, a: 1}
   UpgradeNameColor: {r: 1, g: 1, b: 1, a: 1}
   UpgradeValueColor: {r: 0.55, g: 1, b: 0.6, a: 1}
+  PlayerSheetCellPixels: 256
+  PlayerSpritePixelsPerUnit: 190
+  PlayerSpriteOffsetY: -0.584
+  PlayerColliderSize: {x: 0.75, y: 1}
+  PlayerIdleFps: 6
+  PlayerWalkFps: 12
+  PlayerRepairFps: 8
+  PlayerDownFps: 8
+  PlayerShootSeconds: 0.3
+  PlayerHurtSeconds: 0.3
+  PlayerDownedLoopStartFrame: 4
+  PlayerDeathStartFrame: 0
+  PlayerDeathRowOffsetPixels: {x: -12, y: -18}
+  PlayerDeadHoldSeconds: 1.5
+  PlayerWalkSpeedThreshold: 0.3
+  PlayerWalkStopDelaySeconds: 0.12
+  PlayerFacingDeadZone: 0.1
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

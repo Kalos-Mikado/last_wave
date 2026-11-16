@@ -27,6 +27,12 @@ namespace LastWave.Player
         private float _nextLocalShotTime;
         private float _nextServerShotTime;
 
+        /// <summary>
+        /// Raised on every machine (host included) each time the server accepts a shot from this player.
+        /// Drives the shoot animation (story 013).
+        /// </summary>
+        public event System.Action OnShotFired;
+
         /// <summary>Caches the aim source.</summary>
         public override void OnNetworkSpawn()
         {
@@ -84,6 +90,14 @@ namespace LastWave.Player
                 rotation: Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg));
             int damage = _upgrades != null ? _upgrades.BulletDamage : config.BulletDamage; // story 012: the shooter's upgraded damage, decided on the server
             bulletObject.GetComponent<Bullet>().Launch(aim, OwnerClientId, damage);
+            ShotFiredRpc(); // story 013: tell every machine, so the shoot animation shows everywhere
+        }
+
+        /// <summary>Server to everyone: a shot of this player was accepted. Raises <see cref="OnShotFired"/>.</summary>
+        [Rpc(SendTo.ClientsAndHost)]
+        public void ShotFiredRpc()
+        {
+            OnShotFired?.Invoke();
         }
 
         // Seconds between shots: the config interval, divided by this player's fire rate upgrades (story 012).

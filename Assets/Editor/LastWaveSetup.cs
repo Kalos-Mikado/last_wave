@@ -39,8 +39,8 @@ namespace LastWave.EditorTools
         private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
         private const float EnemyVisualSize = 0.8f; // world units; asset construction, not gameplay tuning
         private const float BaseVisualSize = 1.5f;
-        private const float AimMarkerOffsetX = 0.5f;
-        private static readonly Vector2 AimMarkerSize = new Vector2(0.4f, 0.2f);
+        private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair
+        private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: hurt, down, death, get up
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -155,33 +155,39 @@ namespace LastWave.EditorTools
 
         private static GameObject BuildPlayerPrefab(Material material, GameObject bulletPrefab)
         {
+            var sheetA = AssetDatabase.LoadAssetAtPath<Texture2D>(PlayerSheetAPath);
+            var sheetB = AssetDatabase.LoadAssetAtPath<Texture2D>(PlayerSheetBPath);
+            if (sheetA == null || sheetB == null) throw new System.InvalidOperationException($"Player sheets not found at {PlayerSheetAPath} / {PlayerSheetBPath}.");
+
             var player = new GameObject("Player");
-            player.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn
             var body = player.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f; // top-down
-            body.freezeRotation = true; // aim rotation is set by code, not by collisions
-            player.AddComponent<BoxCollider2D>().size = Vector2.one;
+            body.freezeRotation = true; // the body never turns: the sprite is flipped instead (story 013)
+            // Hitbox matches the soldier sprite's body (story 013); size from config.
+            player.AddComponent<BoxCollider2D>().size = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath).PlayerColliderSize;
             player.AddComponent<NetworkObject>();
             var networkTransform = player.AddComponent<NetworkTransform>();
             networkTransform.AuthorityMode = NetworkTransform.AuthorityModes.Owner;
-            // 2D top-down: sync X/Y position and the Z rotation (aim) only.
+            // 2D top-down: sync X/Y position only (the body no longer rotates; facing is a NetworkVariable).
             networkTransform.SyncPositionZ = false;
             networkTransform.SyncRotAngleX = false;
             networkTransform.SyncRotAngleY = false;
-            networkTransform.SyncRotAngleZ = true;
+            networkTransform.SyncRotAngleZ = false;
 
-            var marker = new GameObject("AimMarker");
-            marker.transform.SetParent(player.transform, false);
-            marker.transform.localPosition = new Vector3(AimMarkerOffsetX, 0f, 0f);
-            marker.transform.localScale = new Vector3(AimMarkerSize.x, AimMarkerSize.y, 1f);
-            var markerRenderer = marker.AddComponent<SpriteRenderer>();
-            markerRenderer.sharedMaterial = material;
-            markerRenderer.sortingOrder = 1;
+            // The soldier is a child so its pivot (feet) can sit at the bottom of the collider; sprites are cut at runtime (SpriteSheet).
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(player.transform, false);
+            var visualRenderer = visual.AddComponent<SpriteRenderer>();
+            visualRenderer.sharedMaterial = material;
 
-            var movement = player.AddComponent<PlayerMovement>();
-            var movementSerialized = new SerializedObject(movement);
-            movementSerialized.FindProperty("_aimMarker").objectReferenceValue = markerRenderer;
-            movementSerialized.ApplyModifiedPropertiesWithoutUndo();
+            var animator = player.AddComponent<PlayerAnimator>();
+            var animatorSerialized = new SerializedObject(animator);
+            animatorSerialized.FindProperty("_renderer").objectReferenceValue = visualRenderer;
+            animatorSerialized.FindProperty("_sheetA").objectReferenceValue = sheetA;
+            animatorSerialized.FindProperty("_sheetB").objectReferenceValue = sheetB;
+            animatorSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            player.AddComponent<PlayerMovement>();
 
             player.AddComponent<PlayerHealth>();
             player.AddComponent<PlayerLife>(); // story 005: downed, revive, death, respawn

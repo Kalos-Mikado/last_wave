@@ -135,6 +135,7 @@ namespace LastWave.Player
         private PlayerHealth _health;
         private Collider2D _collider;
         private SpriteRenderer _bodyRenderer;
+        private PlayerAnimator _animator;
         private SpriteRenderer[] _renderers;
         private Rigidbody2D _body;
         private Unity.Netcode.Components.NetworkTransform _networkTransform;
@@ -178,7 +179,9 @@ namespace LastWave.Player
             _config = GameConfig.Instance;
             _health = GetComponent<PlayerHealth>();
             _collider = GetComponent<Collider2D>();
-            _bodyRenderer = GetComponent<SpriteRenderer>();
+            // Story 013: the body is the soldier sprite on the child Visual object, owned by PlayerAnimator.
+            _animator = GetComponent<PlayerAnimator>();
+            _bodyRenderer = _animator.BodyRenderer;
             _renderers = GetComponentsInChildren<SpriteRenderer>(true);
             _body = GetComponent<Rigidbody2D>();
             _networkTransform = GetComponent<Unity.Netcode.Components.NetworkTransform>();
@@ -361,7 +364,11 @@ namespace LastWave.Player
             var state = State;
             bool inPlay = state != PlayerState.Dead;
 
-            foreach (var spriteRenderer in _renderers) spriteRenderer.enabled = inPlay;
+            foreach (var spriteRenderer in _renderers)
+            {
+                // Story 013: the body stays on while dead so the death animation can play; PlayerAnimator hides it afterwards.
+                spriteRenderer.enabled = inPlay || spriteRenderer == _bodyRenderer;
+            }
             if (_collider != null) _collider.enabled = inPlay;
 
             Color body = _config.PlayerColors[(int)(OwnerClientId % (ulong)_config.PlayerColors.Length)];

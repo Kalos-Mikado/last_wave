@@ -531,6 +531,80 @@ namespace LastWave.Config
         /// <summary>Colour of the card value line and key number.</summary>
         public Color UpgradeValueColor = new Color(0.55f, 1f, 0.6f, 1f);
 
+        // ---- Story 013: player art and animation ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Every number is a first guess for the designer to tune.
+
+        /// <summary>Width and height of one cell in the player sprite sheets, in pixels (the sheets are 6 x 4 cells).</summary>
+        [Min(1)] public int PlayerSheetCellPixels = 256;
+
+        /// <summary>
+        /// Pixels per world unit for the player sprites: sets how big the soldier is drawn. The soldier is about
+        /// 190 pixels tall in its cell, so 190 makes it about 1 unit tall, the size of the old square body.
+        /// The collider does not change with this.
+        /// </summary>
+        [Min(1f)] public float PlayerSpritePixelsPerUnit = 190f;
+
+        /// <summary>
+        /// Vertical offset of the sprite's cell bottom from the player centre, in world units. The sprite pivot is the
+        /// bottom of the cell and the soldier's feet sit 16 px above it, so -0.5 - 16/190 = -0.584 puts the feet on the
+        /// bottom edge of the hitbox (<see cref="PlayerColliderSize"/>, centred on the player).
+        /// </summary>
+        public float PlayerSpriteOffsetY = -0.584f;
+
+        /// <summary>
+        /// Size of the player's hitbox (BoxCollider2D, centred on the player), in world units. Matches the soldier
+        /// sprite's body without the gun: about 0.75 wide and 1.0 tall at <see cref="PlayerSpritePixelsPerUnit"/> 190.
+        /// Used for enemy contact and for bodies pushing each other; re-run the setup after changing it.
+        /// </summary>
+        public Vector2 PlayerColliderSize = new Vector2(0.75f, 1f);
+
+        /// <summary>Frames per second of the idle loop.</summary>
+        [Min(0f)] public float PlayerIdleFps = 6f;
+
+        /// <summary>Frames per second of the walk loop (while the player's position is changing).</summary>
+        [Min(0f)] public float PlayerWalkFps = 12f;
+
+        /// <summary>Frames per second of the repair/revive loop (while holding E with something to repair or revive).</summary>
+        [Min(0f)] public float PlayerRepairFps = 8f;
+
+        /// <summary>Frames per second of the falling, lying, death and getting-up animations.</summary>
+        [Min(0f)] public float PlayerDownFps = 8f;
+
+        /// <summary>Seconds the shoot animation lasts after each shot; the whole row is played in this time. About the fire interval keeps it continuous while firing.</summary>
+        [Min(0.01f)] public float PlayerShootSeconds = 0.3f;
+
+        /// <summary>Seconds the hurt flinch lasts after losing health while still standing; the whole row is played in this time.</summary>
+        [Min(0.01f)] public float PlayerHurtSeconds = 0.3f;
+
+        /// <summary>First frame (0-based) of the lying pose in the downed row. After the fall plays once, frames from here to the last loop.</summary>
+        [Min(0)] public int PlayerDownedLoopStartFrame = 4;
+
+        /// <summary>
+        /// First frame (0-based) of the death row that is played. A player only ever dies from Downed (lying on the
+        /// ground), and the original death row started from a standing pose (then 4 skipped it). The redrawn row starts
+        /// from the downed pose, so 0 plays it all.
+        /// </summary>
+        [Min(0)] public int PlayerDeathStartFrame = 0;
+
+        /// <summary>
+        /// Pixel nudge (in sheet pixels, facing right) applied while the death row plays, so it lines up with the
+        /// downed pose: in player-b.png the death row sits 12 px further right and 18 px higher than row 2 frame 6.
+        /// </summary>
+        public Vector2 PlayerDeathRowOffsetPixels = new Vector2(-12f, -18f);
+
+        /// <summary>Seconds the last death frame stays visible before the body is hidden (a dead player is out of play until the wave ends).</summary>
+        [Min(0f)] public float PlayerDeadHoldSeconds = 1.5f;
+
+        /// <summary>A player counts as walking when its position changes faster than this, in world units per second.</summary>
+        [Min(0f)] public float PlayerWalkSpeedThreshold = 0.3f;
+
+        /// <summary>Seconds the walk animation continues after movement stops, so network smoothing does not make it flicker.</summary>
+        [Min(0f)] public float PlayerWalkStopDelaySeconds = 0.12f;
+
+        /// <summary>The aim must be at least this far sideways (the X of the unit aim direction, 0 to 1) before the soldier turns around.</summary>
+        [Range(0f, 1f)] public float PlayerFacingDeadZone = 0.1f;
+
         /// <summary>
         /// DEBUG: seconds after the Game scene starts before <c>--force-outcome</c> takes effect, so every
         /// scene object has started. Only used when that command-line argument is given.

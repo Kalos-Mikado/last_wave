@@ -7,22 +7,28 @@ namespace LastWave.Player
 {
     /// <summary>
     /// Top-down WASD movement and mouse aiming for the local player. The owner drives a
-    /// <see cref="Rigidbody2D"/> and its rotation; a <see cref="Unity.Netcode.Components.NetworkTransform"/>
-    /// set to Owner authority on the same prefab syncs position and Z rotation to everyone
+    /// <see cref="Rigidbody2D"/>; a <see cref="Unity.Netcode.Components.NetworkTransform"/>
+    /// set to Owner authority on the same prefab syncs the position to everyone
     /// (movement is owner-authoritative on purpose, see story 002). On every other machine the body is
-    /// kinematic, so only the NetworkTransform moves it. Each player gets a colour by client id.
+    /// kinematic, so only the NetworkTransform moves it. The body no longer rotates to the mouse (story 013):
+    /// the soldier sprite is flipped left or right by <see cref="FacingRight"/>, which the owner writes and
+    /// everyone reads. The colour by client id is applied by <see cref="PlayerLife"/>.
     /// </summary>
     /// <example>
-    /// Player prefab = SpriteRenderer + Rigidbody2D + BoxCollider2D + NetworkObject + NetworkTransform
-    /// (AuthorityMode = Owner) + PlayerMovement + PlayerHealth + PlayerShooting, assigned as
+    /// Player prefab = Rigidbody2D + BoxCollider2D + NetworkObject + NetworkTransform
+    /// (AuthorityMode = Owner) + PlayerMovement + PlayerHealth + PlayerShooting + a child Visual
+    /// (SpriteRenderer) driven by PlayerAnimator, assigned as
     /// NetworkConfig.PlayerPrefab (built by <c>LastWaveSetup.Run</c>).
     /// </example>
-    [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D))]
+    [RequireComponent(typeof(Rigidbody2D))]
     public sealed class PlayerMovement : NetworkBehaviour
     {
         private static Sprite _squareSprite;
 
-        [SerializeField] private SpriteRenderer _aimMarker;
+        // Which way the soldier faces (story 013). Written by the owner, read by every machine, so everyone
+        // draws the same facing. Aim itself stays owner-only; only this one bit needs to travel.
+        private readonly NetworkVariable<bool> _facingRight = new NetworkVariable<bool>(
+            true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
         private GameConfig _config;
         private Rigidbody2D _body;
@@ -51,7 +57,10 @@ namespace LastWave.Player
         /// </summary>
         public Vector2 AimDirection { get; private set; } = Vector2.right;
 
-        /// <summary>Applies the player's colour and, on the owner, its spawn position.</summary>
+        /// <summary>True when the soldier faces right (aim to the right of the player), false when left. Same on every machine.</summary>
+        public bool FacingRight => _facingRight.Value;
+
+        /// <summary>Caches components and, on the owner, sets the spawn position.</summary>
         public override void OnNetworkSpawn()
         {
             _config = GameConfig.Instance;
@@ -59,11 +68,7 @@ namespace LastWave.Player
             _repair = GetComponent<PlayerRepair>();
             _life = GetComponent<PlayerLife>();
 
-            var spriteRenderer = GetComponent<SpriteRenderer>();
-            spriteRenderer.sprite = SquareSprite;
-            // The body colour (and the downed dimming) is set by PlayerLife, the one owner of the player's look.
-            _aimMarker.sprite = SquareSprite;
-            _aimMarker.color = _config.AimMarkerColor;
+            // The body sprite is drawn by PlayerAnimator; its colour (and the downed dimming) is set by PlayerLife.
 
             if (IsOwner)
             {
@@ -84,9 +89,12 @@ namespace LastWave.Player
             // (story 002), so this is a client-side rule; only shooting is also enforced on the server.
             if (_life != null && !_life.IsStanding)
             {
+                // Frozen, not only stopped: enemies are kinematic and would otherwise shove a downed player away.
+                _body.constraints = RigidbodyConstraints2D.FreezeAll;
                 _body.linearVelocity = Vector2.zero;
                 return;
             }
+            _body.constraints = RigidbodyConstraints2D.FreezeRotation;
 
             UpdateAim();
 
@@ -116,7 +124,14 @@ namespace LastWave.Player
             if (toMouse.sqrMagnitude <= Mathf.Epsilon) return; // keep the last aim when the mouse is on the player
 
             AimDirection = toMouse.normalized;
-            transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(AimDirection.y, AimDirection.x) * Mathf.Rad2Deg);
+
+            // Flip only once the mouse is clearly on the other side (dead zone), so a mouse straight above
+            // or below the player does not make the sprite jitter. Written only when it changes.
+            if (Mathf.Abs(AimDirection.x) >= _config.PlayerFacingDeadZone)
+            {
+                bool right = AimDirection.x > 0f;
+                if (right != _facingRight.Value) _facingRight.Value = right;
+            }
         }
     }
 }

@@ -29,6 +29,13 @@ namespace LastWave.Player
         private PlayerUpgrades _upgrades;
         private bool _requested; // server: what the owner last reported
 
+        // Story 013: the server's verdict "this player is reviving or repairing right now", for the animation on every machine.
+        private readonly NetworkVariable<bool> _interactingSynced = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        /// <summary>True on every machine while the server has this player reviving a friend or repairing the base. Drives the repair animation.</summary>
+        public bool IsInteractingSynced => _interactingSynced.Value;
+
         /// <summary>Owner only: true while E is held and there is a downed friend to revive or a damaged base to repair in range. Blocks moving and shooting.</summary>
         public bool IsInteractingLocal { get; private set; }
 
@@ -74,18 +81,25 @@ namespace LastWave.Player
             if (_base == null) _base = FindFirstObjectByType<BaseHealth>();
 
             if (IsOwner) UpdateOwner();
-            if (IsServer && _requested && IsStandingOrUnknown())
+            if (IsServer)
             {
-                var target = FindReviveTarget();
-                if (target != null)
+                bool active = false;
+                if (_requested && IsStandingOrUnknown())
                 {
-                    // Revive wins over repair. Story 012: the reviver's revive speed shortens the hold (time counts faster).
-                    target.ServerHoldRevive(Time.deltaTime * (_upgrades != null ? _upgrades.ReviveSpeedMultiplier : 1f));
+                    var target = FindReviveTarget();
+                    if (target != null)
+                    {
+                        // Revive wins over repair. Story 012: the reviver's revive speed shortens the hold (time counts faster).
+                        target.ServerHoldRevive(Time.deltaTime * (_upgrades != null ? _upgrades.ReviveSpeedMultiplier : 1f));
+                        active = true;
+                    }
+                    else if (_base != null && InRange())
+                    {
+                        _base.Repair(_upgrades != null ? _upgrades.RepairPerSecond : GameConfig.Instance.RepairPerSecond, Time.deltaTime);
+                        active = _base.NeedsRepair; // same test as IsInteractingOnServer
+                    }
                 }
-                else if (_base != null && InRange())
-                {
-                    _base.Repair(_upgrades != null ? _upgrades.RepairPerSecond : GameConfig.Instance.RepairPerSecond, Time.deltaTime);
-                }
+                if (_interactingSynced.Value != active) _interactingSynced.Value = active; // story 013
             }
         }
 
