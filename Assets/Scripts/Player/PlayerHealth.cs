@@ -1,6 +1,7 @@
 using LastWave.Config;
 using LastWave.Enemies;
 using LastWave.Flow;
+using LastWave.UI;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -69,6 +70,8 @@ namespace LastWave.Player
         private WaveManager _waves;       // server: the one whose OnWaveCleared we listen to (story 011)
         private float _sinceDamage;       // server: seconds since this player last took damage
         private float _regenAccumulator;  // server: fractional regen health carried between frames
+        private PlayerRepair _repair;
+        private float _lastRegenRise = float.NegativeInfinity; // every machine: when health last rose like a regen tick (story 017)
 
         /// <summary>Current health, 0 up to <see cref="MaxHealth"/>. Same value on every machine.</summary>
         public int Health => _health.Value;
@@ -91,6 +94,8 @@ namespace LastWave.Player
         {
             _config = GameConfig.Instance;
             _life = GetComponent<PlayerLife>();
+            _repair = GetComponent<PlayerRepair>();
+            _lastRegenRise = float.NegativeInfinity;
             _health.OnValueChanged += HandleHealthChanged;
             if (IsServer) _health.Value = MaxHealth;
             ResetRegen();
@@ -143,6 +148,10 @@ namespace LastWave.Player
 
         private void HandleHealthChanged(int previous, int current)
         {
+            // Story 017: regen runs on the server only, so every machine infers it from the synced health. Revive and
+            // respawn start from 0, an upgrade or the wave heal jumps more than a regen tick, and full health hides it.
+            int maxTick = Mathf.CeilToInt(_config.HealthRegenPerSecond * _config.HudRegenIconHoldSeconds) + 1;
+            if (previous > 0 && current > previous && current - previous <= maxTick && IsStanding) _lastRegenRise = Time.time;
             OnHealthChanged?.Invoke(previous, current);
         }
 
@@ -205,6 +214,16 @@ namespace LastWave.Player
             }
         }
 
+        /// <summary>
+        /// True on every machine while this player's health is regenerating, as far as the synced health shows: it rose
+        /// by a regen-sized step within <see cref="GameConfig.HudRegenIconHoldSeconds"/>, and is still below max.
+        /// </summary>
+        public bool LooksRegenerating =>
+            IsStanding && _health.Value < MaxHealth && Time.time - _lastRegenRise <= _config.HudRegenIconHoldSeconds;
+
+        // Story 017: the framed bar over the player's head, the icon above it (E prompt for the local player, wrench or
+        // hand while interacting, skull while down) and the icon left of it (hourglass while down: the bar is then the
+        // bleed-out time; regen icon while healing). Sizes are reference pixels scaled with the screen.
         private void OnGUI()
         {
             if (!IsSpawned || Event.current.type != EventType.Repaint) return;
@@ -215,7 +234,8 @@ namespace LastWave.Player
             Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * _config.HealthBarOffsetY);
             if (screen.z < 0f) return;
 
-            Vector2 size = _config.HealthBarSize;
+            float scale = UiSkin.Scale;
+            Vector2 size = _config.HealthBarSize * scale;
             var back = new Rect(screen.x - size.x * 0.5f, Screen.height - screen.y - size.y * 0.5f, size.x, size.y);
             bool downed = _life != null && _life.IsDowned;
             // A downed player's bar shows the time left before death (distinct colour), not health.
@@ -223,21 +243,35 @@ namespace LastWave.Player
                 ? Mathf.Clamp01(_life.DownedRemaining / _config.DownedTimeoutSeconds)
                 : Mathf.Clamp01((float)_health.Value / MaxHealth);
 
-            var previousColor = GUI.color;
-            GUI.color = _config.HealthBarBackColor;
-            GUI.DrawTexture(back, Texture2D.whiteTexture);
-            GUI.color = downed ? _config.DownedBarColor : _config.HealthBarFillColor;
-            GUI.DrawTexture(new Rect(back.x, back.y, back.width * fraction, back.height), Texture2D.whiteTexture);
+            UiSkin.Bar(back, _config.HudPlayerBarTexture, _config.HudPlayerBarBorder, _config.HudPlayerBarFillInset, fraction,
+                downed ? _config.DownedBarColor : _config.HealthBarFillColor, _config.HealthBarBackColor);
             if (downed && _life.ReviveProgress > 0f)
             {
                 // Thin bar right under it: how far the revive has got.
                 float thickness = back.height * 0.5f;
+                var previousColor = GUI.color;
                 GUI.color = _config.HealthBarBackColor;
                 GUI.DrawTexture(new Rect(back.x, back.yMax + 1f, back.width, thickness), Texture2D.whiteTexture);
                 GUI.color = _config.ReviveBarColor;
                 GUI.DrawTexture(new Rect(back.x, back.yMax + 1f, back.width * _life.ReviveProgress, thickness), Texture2D.whiteTexture);
+                GUI.color = previousColor;
             }
-            GUI.color = previousColor;
+
+            float icon = _config.HudIconSize * scale;
+            var above = new Rect(back.center.x - icon * 0.5f, back.y - _config.HudIconAboveGap * scale - icon, icon, icon);
+            var side = new Rect(back.x - _config.HudIconSideGap * scale - icon, back.center.y - icon * 0.5f, icon, icon);
+            if (downed)
+            {
+                UiSkin.DrawIcon(above, HudIcon.Downed);
+                UiSkin.DrawIcon(side, HudIcon.BleedOut);
+                return;
+            }
+            if (_repair != null)
+            {
+                if (_repair.IsInteractingSynced) UiSkin.DrawIcon(above, _repair.IsRevivingShown ? HudIcon.Revive : HudIcon.Repair);
+                else if (IsOwner && _repair.HasInteractTarget && !GameOutcome.IsOver) UiSkin.DrawIcon(above, HudIcon.Interact);
+            }
+            if (LooksRegenerating) UiSkin.DrawIcon(side, HudIcon.Regen);
         }
     }
 }

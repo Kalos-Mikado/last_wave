@@ -4,8 +4,10 @@ using LastWave.Base;
 using LastWave.Config;
 using LastWave.Enemies;
 using LastWave.Flow;
+using LastWave.UI;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LastWave.Player
 {
@@ -142,6 +144,9 @@ namespace LastWave.Player
         private WaveManager _waves;    // server: the one whose OnWaveCleared we listen to
         private float _reviveSeconds;  // server: seconds held so far
         private bool _reviveTouched;   // server: a reviver held E this frame
+        private PlayerUpgrades _upgrades;
+        private bool _inGameScene;     // owner: the Game scene is active (cached; Scene.name allocates)
+        private bool _crosshairOn;     // owner: the OS cursor is hidden and the crosshair drawn (story 017)
 
         /// <summary>Every spawned player on this machine (all machines spawn every player object).</summary>
         public static IReadOnlyList<PlayerLife> All => AllPlayers;
@@ -185,6 +190,12 @@ namespace LastWave.Player
             _renderers = GetComponentsInChildren<SpriteRenderer>(true);
             _body = GetComponent<Rigidbody2D>();
             _networkTransform = GetComponent<Unity.Netcode.Components.NetworkTransform>();
+            _upgrades = GetComponent<PlayerUpgrades>();
+            if (IsOwner)
+            {
+                _inGameScene = SceneManager.GetActiveScene().name == _config.GameSceneName;
+                SceneManager.activeSceneChanged += HandleActiveSceneChanged;
+            }
 
             _reviveSeconds = 0f;
             _reviveTouched = false;
@@ -198,6 +209,8 @@ namespace LastWave.Player
         {
             AllPlayers.Remove(this);
             _state.OnValueChanged -= HandleStateChanged;
+            SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
+            SetCrosshair(false); // leaving the room: the normal cursor comes back
             if (_waves != null) _waves.OnWaveCleared -= HandleWaveCleared;
             _waves = null;
         }
@@ -250,6 +263,12 @@ namespace LastWave.Player
 
         private void Update()
         {
+            if (IsSpawned && IsOwner)
+            {
+                // Story 017: the crosshair replaces the OS cursor only while playing: Game scene, standing, no end
+                // screen and no upgrade cards open. Anywhere else the normal cursor is back.
+                SetCrosshair(_inGameScene && IsStanding && !GameOutcome.IsOver && (_upgrades == null || !_upgrades.HasOpenOffer));
+            }
             if (!IsSpawned || !IsServer) return;
 
             if (_waves == null)
@@ -269,6 +288,30 @@ namespace LastWave.Player
 
             _downedRemaining.Value = PlayerLifeRules.AdvanceDowned(_downedRemaining.Value, Time.deltaTime);
             if (_downedRemaining.Value <= 0f) Die();
+        }
+
+        private void HandleActiveSceneChanged(Scene previous, Scene next)
+        {
+            _inGameScene = next.name == _config.GameSceneName;
+        }
+
+        private void SetCrosshair(bool on)
+        {
+            if (on == _crosshairOn) return;
+            _crosshairOn = on;
+            Cursor.visible = !on;
+        }
+
+        // Story 017: the crosshair icon centred on the mouse, drawn above the rest of the HUD. The OS cursor is hidden
+        // instead of replaced with Cursor.SetCursor, whose hardware cursor size limits vary by system.
+        private void OnGUI()
+        {
+            if (!_crosshairOn) return;
+            GUI.depth = _config.CrosshairGuiDepth; // every OnGUI call, layout and repaint alike
+            if (Event.current.type != EventType.Repaint) return;
+            float size = _config.CrosshairSize * UiSkin.Scale;
+            var mouse = Event.current.mousePosition;
+            UiSkin.DrawIcon(new Rect(mouse.x - size * 0.5f, mouse.y - size * 0.5f, size, size), HudIcon.Crosshair);
         }
 
         private void Revive()

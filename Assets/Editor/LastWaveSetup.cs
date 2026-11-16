@@ -60,6 +60,12 @@ namespace LastWave.EditorTools
         private const string ButtonPressedTexturePath = "Assets/Art/UI/button-pressed-state.png"; // story 016
         private const string PanelTexturePath = "Assets/Art/UI/dialog-panel.png";             // story 016
         private const string GameIconTexturePath = "Assets/Art/UI/game-icon.png";             // story 016: the exe icon
+        private const string PlayerBarTexturePath = "Assets/Art/UI/player-health-bar.png";    // story 017
+        private const string BaseBarTexturePath = "Assets/Art/UI/base-health-bar.png";        // story 017
+        private const string BossBarTexturePath = "Assets/Art/UI/boss-health-bar.png";        // story 017
+        private const string WavePlateTexturePath = "Assets/Art/UI/wave.png";                 // story 017 (the story's "wave-counter.png")
+        private const string RoomPlateTexturePath = "Assets/Art/UI/room-info.png";            // story 017
+        private const string HudIconsTexturePath = "Assets/Art/UI/hud-icons.png";             // story 017
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -120,11 +126,12 @@ namespace LastWave.EditorTools
             return config;
         }
 
-        // Story 016: the menu and skin pictures UiSkin draws. The trimmed ones are cut to their opaque pixels at runtime,
+        // Story 016 (and 017's HUD art): the menu, skin and HUD pictures UiSkin draws. The trimmed ones are cut to their opaque pixels at runtime,
         // which needs their pixels on the CPU (Read/Write).
         private static void AssignUiArt(GameConfig config)
         {
-            foreach (var path in new[] { MenuLogoTexturePath, ButtonTexturePath, ButtonHoverTexturePath, ButtonPressedTexturePath, PanelTexturePath })
+            foreach (var path in new[] { MenuLogoTexturePath, ButtonTexturePath, ButtonHoverTexturePath, ButtonPressedTexturePath, PanelTexturePath,
+                PlayerBarTexturePath, BaseBarTexturePath, BossBarTexturePath, WavePlateTexturePath, RoomPlateTexturePath, HudIconsTexturePath })
             {
                 EnsureReadable(path);
             }
@@ -134,6 +141,13 @@ namespace LastWave.EditorTools
             config.UiButtonHoverTexture = LoadTexture(ButtonHoverTexturePath);
             config.UiButtonPressedTexture = LoadTexture(ButtonPressedTexturePath);
             config.UiPanelTexture = LoadTexture(PanelTexturePath);
+            // Story 017: HUD frames, plates and the icon sheet, all trimmed or cut at runtime (hence Read/Write above).
+            config.HudPlayerBarTexture = LoadTexture(PlayerBarTexturePath);
+            config.HudBaseBarTexture = LoadTexture(BaseBarTexturePath);
+            config.HudBossBarTexture = LoadTexture(BossBarTexturePath);
+            config.HudWavePlateTexture = LoadTexture(WavePlateTexturePath);
+            config.HudRoomPlateTexture = LoadTexture(RoomPlateTexturePath);
+            config.HudIconsTexture = LoadTexture(HudIconsTexturePath);
             EditorUtility.SetDirty(config);
         }
 

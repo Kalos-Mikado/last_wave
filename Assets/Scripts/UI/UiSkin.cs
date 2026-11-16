@@ -5,6 +5,28 @@ using UnityEngine;
 namespace LastWave.UI
 {
     /// <summary>
+    /// The HUD icons (story 017), in the order they sit in <c>Art/UI/hud-icons.png</c>: row by row from the top-left of
+    /// the <see cref="GameConfig.HudIconGrid"/> cells. Drawn with <see cref="UiSkin.Icon"/>.
+    /// </summary>
+    public enum HudIcon
+    {
+        /// <summary>The E key: something to repair or revive is in range.</summary>
+        Interact,
+        /// <summary>Wrench: repairing the base.</summary>
+        Repair,
+        /// <summary>Hand with a plus: reviving a friend.</summary>
+        Revive,
+        /// <summary>Crosshair: the mouse cursor during play.</summary>
+        Crosshair,
+        /// <summary>Skull: the player is down.</summary>
+        Downed,
+        /// <summary>Hourglass: the downed player's bleed-out time (the bar beside it).</summary>
+        BleedOut,
+        /// <summary>Green plus with a heart: health is regenerating.</summary>
+        Regen,
+    }
+
+    /// <summary>
     /// The shared IMGUI look (story 016): art buttons with hover and pressed pictures, the dialog panel, and light text
     /// with a shadow. Pictures and sizes come from <see cref="GameConfig"/>. Call only from <c>OnGUI</c>.
     /// <para>
@@ -14,6 +36,10 @@ namespace LastWave.UI
     /// does not jump between states. The 9-slice backgrounds are drawn under a scaled <see cref="GUI.matrix"/>
     /// (<see cref="GameConfig.UiButtonArtScale"/>, <see cref="GameConfig.UiPanelArtScale"/>) so their corners, which
     /// IMGUI keeps at one texture pixel per GUI pixel, come out at a sensible size; text is drawn unscaled on top.
+    /// </para>
+    /// <para>
+    /// Story 017 adds the HUD: <see cref="Frame"/> and <see cref="Bar"/> draw the frame and plate pictures scaled to the
+    /// rectangle's height and 9-sliced across its width, and <see cref="Icon"/> cuts the icon sheet into one texture per icon.
     /// </para>
     /// </summary>
     /// <example>
@@ -28,6 +54,9 @@ namespace LastWave.UI
     public static class UiSkin
     {
         private static readonly Dictionary<Texture2D, Texture2D> Trims = new Dictionary<Texture2D, Texture2D>();
+        private static readonly Dictionary<Texture2D, GUIStyle> Frames = new Dictionary<Texture2D, GUIStyle>();
+        private static readonly int IconCount = System.Enum.GetValues(typeof(HudIcon)).Length;
+        private static Texture2D[] _icons;
         private static GUIStyle _button, _panel, _text, _field;
 
         /// <summary>Screen pixels per reference pixel: the screen height over <see cref="GameConfig.UiReferenceHeight"/>.</summary>
@@ -130,6 +159,118 @@ namespace LastWave.UI
             return GUI.TextField(rect, text, maxLength, _field);
         }
 
+        /// <summary>
+        /// Story 017: draws a HUD frame or plate picture (trimmed to its opaque pixels) filling <paramref name="rect"/>.
+        /// The picture is scaled to the rectangle's height and 9-sliced across its width, so the ends and corners are
+        /// never stretched. Draws on repaint only.
+        /// </summary>
+        /// <param name="rect">Frame area in screen pixels.</param>
+        /// <param name="source">The frame picture (Read/Write, transparent margins).</param>
+        /// <param name="border">9-slice border in trimmed-picture pixels (x left, y right, z top, w bottom).</param>
+        public static void Frame(Rect rect, Texture2D source, Vector4 border)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            var style = FrameStyle(source);
+            var offset = style.border; // set in place: no RectOffset per call
+            offset.left = Mathf.RoundToInt(border.x);
+            offset.right = Mathf.RoundToInt(border.y);
+            offset.top = Mathf.RoundToInt(border.z);
+            offset.bottom = Mathf.RoundToInt(border.w);
+            float height = style.normal.background.height;
+            float art = rect.height / height;
+            var saved = GUI.matrix;
+            GUIUtility.ScaleAroundPivot(new Vector2(art, art), rect.position);
+            style.Draw(new Rect(rect.x, rect.y, rect.width / art, height), false, false, false, false);
+            GUI.matrix = saved;
+        }
+
+        /// <summary>
+        /// Story 017: a fill bar inside a frame picture. The back colour fills the frame's inner area, the fill colour
+        /// covers <paramref name="fraction"/> of it from the left, then the frame is drawn on top (<see cref="Frame"/>).
+        /// Draws on repaint only.
+        /// </summary>
+        /// <param name="rect">Frame area in screen pixels.</param>
+        /// <param name="frame">The frame picture.</param>
+        /// <param name="border">9-slice border in trimmed-picture pixels.</param>
+        /// <param name="fillInset">The inner area's distance from each frame edge, in trimmed-picture pixels (x left,
+        /// y right, z top, w bottom). Keep x and y within <paramref name="border"/> so the fill lines up with the ends.</param>
+        /// <param name="fraction">Filled share, 0 to 1.</param>
+        /// <param name="fill">Fill colour.</param>
+        /// <param name="back">Colour of the empty part.</param>
+        public static void Bar(Rect rect, Texture2D frame, Vector4 border, Vector4 fillInset, float fraction, Color fill, Color back)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            float art = rect.height / FrameStyle(frame).normal.background.height;
+            var inner = new Rect(rect.x + fillInset.x * art, rect.y + fillInset.z * art,
+                rect.width - (fillInset.x + fillInset.y) * art, rect.height - (fillInset.z + fillInset.w) * art);
+            var previous = GUI.color;
+            GUI.color = back;
+            GUI.DrawTexture(inner, Texture2D.whiteTexture);
+            GUI.color = fill;
+            GUI.DrawTexture(new Rect(inner.x, inner.y, inner.width * Mathf.Clamp01(fraction), inner.height), Texture2D.whiteTexture);
+            GUI.color = previous;
+            Frame(rect, frame, border);
+        }
+
+        /// <summary>
+        /// Story 017: one HUD icon, cut from <see cref="GameConfig.HudIconsTexture"/> (cached; built on first call). Each
+        /// icon is its cell of the <see cref="GameConfig.HudIconGrid"/> trimmed to its opaque pixels, so the cells need
+        /// not be exact as long as each icon stays inside its own cell.
+        /// </summary>
+        /// <param name="icon">Which icon.</param>
+        public static Texture2D Icon(HudIcon icon)
+        {
+            if (_icons == null || _icons[0] == null) _icons = CutIcons(GameConfig.Instance.HudIconsTexture, GameConfig.Instance.HudIconGrid);
+            return _icons[(int)icon];
+        }
+
+        /// <summary>Draws a HUD icon keeping its aspect inside <paramref name="rect"/> (screen pixels). Draws on repaint only.</summary>
+        /// <param name="rect">Icon area in screen pixels.</param>
+        /// <param name="icon">Which icon.</param>
+        public static void DrawIcon(Rect rect, HudIcon icon)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            GUI.DrawTexture(rect, Icon(icon), ScaleMode.ScaleToFit);
+        }
+
+        private static GUIStyle FrameStyle(Texture2D source)
+        {
+            if (!Frames.TryGetValue(source, out var style) || style.normal.background == null)
+            {
+                style = new GUIStyle(GUIStyle.none) { normal = { background = TrimTogether(source)[0] } };
+                Frames[source] = style;
+            }
+            return style;
+        }
+
+        // Each icon: its grid cell (row 0 at the top of the picture) cut to the opaque pixels inside it.
+        private static Texture2D[] CutIcons(Texture2D sheet, Vector2Int grid)
+        {
+            int w = sheet.width, h = sheet.height;
+            var px = sheet.GetPixels32();
+            var icons = new Texture2D[IconCount];
+            for (int i = 0; i < IconCount; i++)
+            {
+                int col = i % grid.x, row = i / grid.x;
+                int x0 = col * w / grid.x, x1 = (col + 1) * w / grid.x;
+                int y0 = h - (row + 1) * h / grid.y, y1 = h - row * h / grid.y; // texture rows count from the bottom
+                int xMin = x1, yMin = y1, xMax = x0 - 1, yMax = y0 - 1;
+                for (int y = y0; y < y1; y++)
+                {
+                    for (int x = x0; x < x1; x++)
+                    {
+                        if (px[y * w + x].a == 0) continue;
+                        if (x < xMin) xMin = x;
+                        if (x > xMax) xMax = x;
+                        if (y < yMin) yMin = y;
+                        if (y > yMax) yMax = y;
+                    }
+                }
+                icons[i] = Copy(px, w, xMin, yMin, xMax - xMin + 1, yMax - yMin + 1, $"{sheet.name} {(HudIcon)i}");
+            }
+            return icons;
+        }
+
         private static int FontSize(int referenceFontSize) => Mathf.Max(1, Mathf.RoundToInt(referenceFontSize * Scale));
 
         // Built on first use inside OnGUI (GUI.skin is only available there); rebuilt if the trimmed textures are gone
@@ -185,25 +326,33 @@ namespace LastWave.UI
 
             int tw = xMax - xMin + 1, th = yMax - yMin + 1;
             var result = new Texture2D[sources.Length];
-            var region = new Color32[tw * th];
             for (int s = 0; s < sources.Length; s++)
             {
-                for (int y = 0; y < th; y++)
-                {
-                    System.Array.Copy(pixels[s], (yMin + y) * w + xMin, region, y * tw, tw);
-                }
-                var trimmed = new Texture2D(tw, th, TextureFormat.RGBA32, true)
-                {
-                    name = sources[s].name + " (trimmed)",
-                    wrapMode = TextureWrapMode.Clamp,
-                    filterMode = FilterMode.Trilinear,
-                };
-                trimmed.SetPixels32(region);
-                trimmed.Apply(true, true);
+                var trimmed = Copy(pixels[s], w, xMin, yMin, tw, th, sources[s].name + " (trimmed)");
                 Trims[sources[s]] = trimmed;
                 result[s] = trimmed;
             }
             return result;
+        }
+
+        // A new texture from a rectangle of a source's pixels (w = source width), with mipmaps (drawn well below full
+        // size); it drops its CPU pixels after upload.
+        private static Texture2D Copy(Color32[] pixels, int w, int xMin, int yMin, int tw, int th, string name)
+        {
+            var region = new Color32[tw * th];
+            for (int y = 0; y < th; y++)
+            {
+                System.Array.Copy(pixels, (yMin + y) * w + xMin, region, y * tw, tw);
+            }
+            var texture = new Texture2D(tw, th, TextureFormat.RGBA32, true)
+            {
+                name = name,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Trilinear,
+            };
+            texture.SetPixels32(region);
+            texture.Apply(true, true);
+            return texture;
         }
     }
 }

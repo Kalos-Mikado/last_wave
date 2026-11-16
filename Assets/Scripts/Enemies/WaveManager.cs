@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using LastWave.Config;
 using LastWave.Player;
+using LastWave.UI;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -122,8 +123,6 @@ namespace LastWave.Enemies
         private readonly List<Enemy> _alive = new List<Enemy>();
         private GameConfig _config;
         private NetworkManager _network;
-        private GUIStyle _labelStyle;
-        private GUIStyle _bossStyle;
         private int _wave;   // 0 until wave 1 starts; on every machine
         private int _total;
         private bool _allCleared;
@@ -330,58 +329,44 @@ namespace LastWave.Enemies
             if (_config == null || Event.current.type != EventType.Repaint) return;
             if (_network == null || !_network.IsListening) return;
 
-            _labelStyle ??= new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.UpperCenter,
-                fontSize = _config.WaveLabelFontSize,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white },
-            };
-
+            // Story 017: the label sits on the wave plate at the top centre; sizes are reference pixels.
             // "Get ready" covers the first-wave delay; the wave number stays up through the rest periods.
             string text = _allCleared ? "All waves cleared"
                 : _wave == 0 ? "Get ready..."
                 : $"Wave {_wave} / {_total}";
-            GUI.Label(new Rect(0f, 8f, Screen.width, _config.WaveLabelFontSize * 2f), text, _labelStyle);
+            float scale = UiSkin.Scale;
+            var plateSize = _config.HudWavePlateSize * scale;
+            var plate = new Rect((Screen.width - plateSize.x) * 0.5f, _config.HudWavePlateTop * scale, plateSize.x, plateSize.y);
+            UiSkin.Frame(plate, _config.HudWavePlateTexture, _config.HudWavePlateBorder);
+            var textRect = new Rect(plate.x, plate.y - _config.HudWaveTextLift * scale, plate.width, plate.height);
+            UiSkin.Label(textRect, text, _config.WaveLabelFontSize, TextAnchor.MiddleCenter, _config.UiTextColor, FontStyle.Bold);
 
-            DrawBossBars();
+            DrawBossBars(plate.yMax + _config.HudBossBarSpacing * scale);
         }
 
         // Story 006: one wide bar per living mini-boss or boss, centred under the wave label, on every machine.
         // Reads the NetworkVariable-backed numbers on Enemy, so the host and clients draw the same thing.
-        private void DrawBossBars()
+        // Story 017: the bar sits in the spiked boss frame; the name and health text stay above it.
+        private void DrawBossBars(float y)
         {
-            _bossStyle ??= new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.LowerCenter,
-                fontSize = _config.BossBarFontSize,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white },
-            };
-
-            float textHeight = _config.BossBarFontSize * 1.5f;
-            float y = 8f + _config.WaveLabelFontSize * 1.6f;
-            var previousColor = GUI.color;
+            float scale = UiSkin.Scale;
+            float textHeight = _config.BossBarFontSize * 1.5f * scale;
+            var size = _config.BossBarSize * scale;
+            float x = (Screen.width - size.x) * 0.5f;
             foreach (var boss in Enemy.Bosses)
             {
                 if (boss == null || !boss.IsSpawned || boss.ShownMaxHealth <= 0) continue; // not synced yet, or gone
 
                 string title = boss.Kind == EnemyKind.Boss ? _config.BossLabel : _config.MiniBossLabel;
                 float fraction = Mathf.Clamp01((float)boss.ShownHealth / boss.ShownMaxHealth);
-                var size = _config.BossBarSize;
-                float x = (Screen.width - size.x) * 0.5f;
-
-                GUI.Label(new Rect(x, y, size.x, textHeight), $"{title}  {boss.ShownHealth} / {boss.ShownMaxHealth}", _bossStyle);
+                UiSkin.Label(new Rect(x, y, size.x, textHeight), $"{title}  {boss.ShownHealth} / {boss.ShownMaxHealth}",
+                    _config.BossBarFontSize, TextAnchor.LowerCenter, _config.UiTextColor, FontStyle.Bold);
                 var back = new Rect(x, y + textHeight, size.x, size.y);
-                GUI.color = _config.BossBarBackColor;
-                GUI.DrawTexture(back, Texture2D.whiteTexture);
-                GUI.color = _config.BossBarFillColor;
-                GUI.DrawTexture(new Rect(back.x, back.y, back.width * fraction, back.height), Texture2D.whiteTexture);
-                GUI.color = previousColor;
+                UiSkin.Bar(back, _config.HudBossBarTexture, _config.HudBossBarBorder, _config.HudBossBarFillInset, fraction,
+                    _config.BossBarFillColor, _config.BossBarBackColor);
 
-                y = back.yMax + 6f; // the next bar, if two are alive, sits below
+                y = back.yMax + _config.HudBossBarSpacing * scale; // the next bar, if two are alive, sits below
             }
-            GUI.color = previousColor;
         }
     }
 }

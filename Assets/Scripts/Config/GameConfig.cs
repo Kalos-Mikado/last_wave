@@ -232,8 +232,8 @@ namespace LastWave.Config
         /// <summary>Colour of the small marker on a player that shows the aim direction.</summary>
         public Color AimMarkerColor = new Color(0.1f, 0.1f, 0.1f);
 
-        /// <summary>Health bar size in screen pixels (width, height).</summary>
-        public Vector2 HealthBarSize = new Vector2(60f, 8f);
+        /// <summary>Health bar size (width, height). Story 017: reference pixels (see <see cref="UiReferenceHeight"/>), framed by <see cref="HudPlayerBarTexture"/>.</summary>
+        public Vector2 HealthBarSize = new Vector2(110f, 22f);
 
         /// <summary>How far above the player centre the health bar sits, in world units.</summary>
         public float HealthBarOffsetY = 0.9f;
@@ -293,7 +293,7 @@ namespace LastWave.Config
         /// <summary>Colour of the placeholder base marker. Since story 015 the base shows images and this is no longer used by the scene (kept only because WaveManager still reads it for an optional marker).</summary>
         public Color BaseColor = new Color(0.2f, 0.45f, 1f);
 
-        /// <summary>Font size of the "Wave n / total" label, in pixels.</summary>
+        /// <summary>Font size of the "Wave n / total" label. Story 017: reference pixels, drawn on <see cref="HudWavePlateTexture"/>.</summary>
         [Min(8)] public int WaveLabelFontSize = 28;
 
         /// <summary>
@@ -337,8 +337,8 @@ namespace LastWave.Config
         /// <summary>Key the player holds to repair the base.</summary>
         public UnityEngine.InputSystem.Key RepairKey = UnityEngine.InputSystem.Key.E;
 
-        /// <summary>Base health bar size in screen pixels (width, height).</summary>
-        public Vector2 BaseBarSize = new Vector2(160f, 12f);
+        /// <summary>Base health bar size (width, height). Story 017: reference pixels, framed by <see cref="HudBaseBarTexture"/>.</summary>
+        public Vector2 BaseBarSize = new Vector2(260f, 34f);
 
         /// <summary>How far above the base centre (<see cref="BasePosition"/>) the bar sits, in world units. Story 015: raised to clear the taller base image (top is about 1.7 above the centre).</summary>
         public float BaseBarOffsetY = 2.0f;
@@ -525,8 +525,8 @@ namespace LastWave.Config
         /// <summary>Name shown on the health bar of the <see cref="EnemyKind.Boss"/>.</summary>
         public string BossLabel = "Boss";
 
-        /// <summary>Boss health bar size in screen pixels (width, height).</summary>
-        public Vector2 BossBarSize = new Vector2(520f, 22f);
+        /// <summary>Boss health bar size (width, height). Story 017: reference pixels, framed by <see cref="HudBossBarTexture"/>.</summary>
+        public Vector2 BossBarSize = new Vector2(600f, 44f);
 
         /// <summary>Boss health bar fill colour.</summary>
         public Color BossBarFillColor = new Color(0.9f, 0.2f, 0.2f);
@@ -534,7 +534,7 @@ namespace LastWave.Config
         /// <summary>Boss health bar background colour.</summary>
         public Color BossBarBackColor = new Color(0f, 0f, 0f, 0.7f);
 
-        /// <summary>Font size of the boss name and health text above the bar, in pixels.</summary>
+        /// <summary>Font size of the boss name and health text above the bar. Story 017: reference pixels.</summary>
         [Min(8)] public int BossBarFontSize = 20;
 
         // ---- Story 007: win/lose screens, restart, room strip ----
@@ -593,13 +593,13 @@ namespace LastWave.Config
         [Min(0f)] public float EndSpacing = 18f;
 
         /// <summary>
-        /// Gap between the room strip and the screen corner given by <see cref="RoomStripAnchor"/>, in screen pixels
+        /// Gap between the room strip and the screen corner given by <see cref="RoomStripAnchor"/>, in reference pixels (story 017)
         /// (x from the left or right edge, y from the top or bottom edge).
         /// </summary>
-        public Vector2 RoomStripPosition = new Vector2(10f, 10f);
+        public Vector2 RoomStripPosition = new Vector2(16f, 16f);
 
-        /// <summary>Size of the room strip in the Game scene, in screen pixels (width, height).</summary>
-        public Vector2 RoomStripSize = new Vector2(300f, 30f);
+        /// <summary>Size of the room strip in the Game scene (width, height). Story 017: reference pixels, on the <see cref="HudRoomPlateTexture"/> plate.</summary>
+        public Vector2 RoomStripSize = new Vector2(400f, 46f);
 
         /// <summary>
         /// Screen corner the room strip sits in, as a fraction of the screen (0,0 = top-left, 1,0 = top-right). Story 016
@@ -608,8 +608,8 @@ namespace LastWave.Config
         /// </summary>
         public Vector2 RoomStripAnchor = new Vector2(1f, 0f);
 
-        /// <summary>Font size of the room strip, in pixels.</summary>
-        [Min(8)] public int RoomStripFontSize = 18;
+        /// <summary>Font size of the room strip. Story 017: reference pixels.</summary>
+        [Min(8)] public int RoomStripFontSize = 20;
 
         /// <summary>Word before the join code on the room strip.</summary>
         public string RoomStripCodeLabel = "Room";
@@ -922,6 +922,95 @@ namespace LastWave.Config
 
         /// <summary>Offset of the text shadow, in reference pixels (right, down).</summary>
         public Vector2 UiTextShadowOffset = new Vector2(2f, 2f);
+
+        // ---- Story 017: HUD frames, plates and icons (UiSkin.Frame / Bar / Icon) ----
+        // Frame pictures are trimmed to their opaque pixels at runtime, scaled to the bar height and 9-sliced across the
+        // width. Borders and fill insets are in trimmed-picture pixels (x left, y right, z top, w bottom), measured by eye
+        // from the art (player and base frames about 1180 x 125 with a 12 px line; boss about 1225 x 158; wave plate about
+        // 1180 x 243; room plate about 1310 x 155). Fill insets sit a little inside the frame line so the line covers the
+        // fill's edge. Other sizes are reference pixels. Every number is a first guess to tune.
+
+        /// <summary>Frame of the bar above each player (Art/UI/player-health-bar.png). Must be Read/Write (LastWaveSetup sets it).</summary>
+        public Texture2D HudPlayerBarTexture;
+
+        /// <summary>Frame of the base bar, with the shield at its left end (Art/UI/base-health-bar.png). Must be Read/Write.</summary>
+        public Texture2D HudBaseBarTexture;
+
+        /// <summary>Frame of a mini-boss or boss bar, spiked with a skull at its left end (Art/UI/boss-health-bar.png). Must be Read/Write.</summary>
+        public Texture2D HudBossBarTexture;
+
+        /// <summary>Dark plate behind the "Wave n / total" label (Art/UI/wave.png; the story calls it wave-counter.png). Must be Read/Write.</summary>
+        public Texture2D HudWavePlateTexture;
+
+        /// <summary>Plate behind the room code and player count in the Game scene (Art/UI/room-info.png). Must be Read/Write.</summary>
+        public Texture2D HudRoomPlateTexture;
+
+        /// <summary>The HUD icon sheet (Art/UI/hud-icons.png), cut into <see cref="HudIconGrid"/> cells in <c>UiSkin.HudIcon</c> order. Must be Read/Write.</summary>
+        public Texture2D HudIconsTexture;
+
+        /// <summary>Columns and rows of equal cells the icon sheet is divided into; each icon is trimmed to its opaque pixels within its cell (the sheet is 4 x 4 cells of about 313 px, top two rows used).</summary>
+        public Vector2Int HudIconGrid = new Vector2Int(4, 4);
+
+        /// <summary>9-slice border of the player bar frame.</summary>
+        public Vector4 HudPlayerBarBorder = new Vector4(16f, 16f, 16f, 16f);
+
+        /// <summary>Inner (fill) area of the player bar frame, as insets from its edges.</summary>
+        public Vector4 HudPlayerBarFillInset = new Vector4(9f, 9f, 9f, 9f);
+
+        /// <summary>9-slice border of the base bar frame; the left one holds the shield.</summary>
+        public Vector4 HudBaseBarBorder = new Vector4(92f, 16f, 16f, 16f);
+
+        /// <summary>Inner (fill) area of the base bar frame; the fill starts right of the shield.</summary>
+        public Vector4 HudBaseBarFillInset = new Vector4(84f, 9f, 9f, 9f);
+
+        /// <summary>9-slice border of the boss bar frame; the left one holds the skull, the others the spikes.</summary>
+        public Vector4 HudBossBarBorder = new Vector4(80f, 40f, 38f, 38f);
+
+        /// <summary>Inner (fill) area of the boss bar frame; the fill starts right of the skull.</summary>
+        public Vector4 HudBossBarFillInset = new Vector4(74f, 28f, 28f, 30f);
+
+        /// <summary>9-slice border of the wave plate: the chamfered corners and the red line at the bottom.</summary>
+        public Vector4 HudWavePlateBorder = new Vector4(40f, 40f, 32f, 48f);
+
+        /// <summary>9-slice border of the room plate: its rounded corners.</summary>
+        public Vector4 HudRoomPlateBorder = new Vector4(34f, 34f, 34f, 34f);
+
+        /// <summary>Size of the wave plate at the top centre, in reference pixels (width, height).</summary>
+        public Vector2 HudWavePlateSize = new Vector2(320f, 64f);
+
+        /// <summary>Gap between the top of the screen and the wave plate, in reference pixels.</summary>
+        [Min(0f)] public float HudWavePlateTop = 12f;
+
+        /// <summary>How far the wave text is lifted from the plate's centre, in reference pixels, so it sits above the red line.</summary>
+        public float HudWaveTextLift = 4f;
+
+        /// <summary>Gap between the wave plate and the first boss bar's text, and between two boss bars, in reference pixels.</summary>
+        [Min(0f)] public float HudBossBarSpacing = 6f;
+
+        /// <summary>Space between the room plate's left edge and its text, in reference pixels.</summary>
+        [Min(0f)] public float HudRoomTextPadding = 24f;
+
+        /// <summary>Side of a HUD icon over a player, in reference pixels.</summary>
+        [Min(1f)] public float HudIconSize = 36f;
+
+        /// <summary>Gap between a player's bar and the icon above it (E, wrench, hand, skull), in reference pixels.</summary>
+        [Min(0f)] public float HudIconAboveGap = 4f;
+
+        /// <summary>Gap between a player's bar and the icon left of it (hourglass while down, regen while healing), in reference pixels.</summary>
+        [Min(0f)] public float HudIconSideGap = 4f;
+
+        /// <summary>
+        /// Seconds the regen icon stays up after the last small health rise. Regen runs on the server only, so every
+        /// machine infers it from the synced health: a rise of at most (regen per second x this) + 1 points while standing,
+        /// from above 0 (revive and respawn start at 0), and below max health.
+        /// </summary>
+        [Min(0.05f)] public float HudRegenIconHoldSeconds = 0.6f;
+
+        /// <summary>Side of the crosshair drawn at the mouse during play (the OS cursor is hidden), in reference pixels.</summary>
+        [Min(1f)] public float CrosshairSize = 40f;
+
+        /// <summary>IMGUI depth of the crosshair: lower draws on top. Below the end screen (-1000) and the upgrade cards (-100).</summary>
+        public int CrosshairGuiDepth = -2000;
 
         /// <summary>The look and hitbox for an enemy kind.</summary>
         public EnemyLookDefinition GetEnemyLook(EnemyKind kind)

@@ -31,7 +31,7 @@ MonoBehaviour:
   BulletLifetime: 1.5
   BulletSpawnOffset: 0.7
   AimMarkerColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
-  HealthBarSize: {x: 60, y: 8}
+  HealthBarSize: {x: 110, y: 22}
   HealthBarOffsetY: 0.9
   HealthBarFillColor: {r: 0.25, g: 0.9, b: 0.3, a: 1}
   HealthBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
@@ -103,7 +103,7 @@ MonoBehaviour:
   RepairPerSecond: 15
   RepairRange: 3
   RepairKey: 19
-  BaseBarSize: {x: 160, y: 12}
+  BaseBarSize: {x: 260, y: 34}
   BaseBarOffsetY: 2
   BaseDamagedThreshold: 0.5
   BaseWorldWidth: 3.2
@@ -155,7 +155,7 @@ MonoBehaviour:
     Edge: 8
   MiniBossLabel: Mini-boss
   BossLabel: Boss
-  BossBarSize: {x: 520, y: 22}
+  BossBarSize: {x: 600, y: 44}
   BossBarFillColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
   BossBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
   BossBarFontSize: 20
@@ -176,10 +176,10 @@ MonoBehaviour:
   EndButtonFontSize: 26
   EndButtonSize: {x: 300, y: 56}
   EndSpacing: 18
-  RoomStripPosition: {x: 10, y: 10}
-  RoomStripSize: {x: 300, y: 30}
+  RoomStripPosition: {x: 16, y: 16}
+  RoomStripSize: {x: 400, y: 46}
   RoomStripAnchor: {x: 1, y: 0}
-  RoomStripFontSize: 18
+  RoomStripFontSize: 20
   RoomStripCodeLabel: Room
   RoomStripPlayersLabel: Players
   Upgrades:
@@ -306,6 +306,32 @@ MonoBehaviour:
   UiTextColor: {r: 1, g: 1, b: 1, a: 1}
   UiTextShadowColor: {r: 0, g: 0, b: 0, a: 0.85}
   UiTextShadowOffset: {x: 2, y: 2}
+  HudPlayerBarTexture: {fileID: 2800000, guid: 373da5faab050154d85ba339984b9329, type: 3}
+  HudBaseBarTexture: {fileID: 2800000, guid: a4917a414f83b4a459c97abb8a7f3b73, type: 3}
+  HudBossBarTexture: {fileID: 2800000, guid: d341315f86983f94fbfd32814bea70e1, type: 3}
+  HudWavePlateTexture: {fileID: 2800000, guid: 75af244056730b842a262bd2c7dde5a0, type: 3}
+  HudRoomPlateTexture: {fileID: 2800000, guid: 43e437e6df4da7a41b9f065f0d3cca29, type: 3}
+  HudIconsTexture: {fileID: 2800000, guid: 402f0537118647b46be68b0191ff6830, type: 3}
+  HudIconGrid: {x: 4, y: 4}
+  HudPlayerBarBorder: {x: 16, y: 16, z: 16, w: 16}
+  HudPlayerBarFillInset: {x: 9, y: 9, z: 9, w: 9}
+  HudBaseBarBorder: {x: 92, y: 16, z: 16, w: 16}
+  HudBaseBarFillInset: {x: 84, y: 9, z: 9, w: 9}
+  HudBossBarBorder: {x: 80, y: 40, z: 38, w: 38}
+  HudBossBarFillInset: {x: 74, y: 28, z: 28, w: 30}
+  HudWavePlateBorder: {x: 40, y: 40, z: 32, w: 48}
+  HudRoomPlateBorder: {x: 34, y: 34, z: 34, w: 34}
+  HudWavePlateSize: {x: 320, y: 64}
+  HudWavePlateTop: 12
+  HudWaveTextLift: 4
+  HudBossBarSpacing: 6
+  HudRoomTextPadding: 24
+  HudIconSize: 36
+  HudIconAboveGap: 4
+  HudIconSideGap: 4
+  HudRegenIconHoldSeconds: 0.6
+  CrosshairSize: 40
+  CrosshairGuiDepth: -2000
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

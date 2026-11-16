@@ -46,6 +46,19 @@ namespace LastWave.Player
         public bool IsInteractingOnServer =>
             IsServer && _requested && IsStandingOrUnknown() && (FindReviveTarget() != null || CanRepairOnServer());
 
+        /// <summary>
+        /// Story 017, for the E prompt: true while this player is standing with a downed friend in revive range or the
+        /// damaged base in repair range, on this machine's copy of the positions (the same test the owner uses for E).
+        /// </summary>
+        public bool HasInteractTarget =>
+            IsStandingOrUnknown() && (FindReviveTarget() != null || (_base != null && _base.NeedsRepair && InRange()));
+
+        /// <summary>
+        /// Story 017, for the hand or wrench icon: true when a downed friend is in revive range on this machine's copy of
+        /// the positions. While <see cref="IsInteractingSynced"/> this means reviving (revive wins over repair), else repairing.
+        /// </summary>
+        public bool IsRevivingShown => FindReviveTarget() != null;
+
         /// <summary>Clears the interact state.</summary>
         public override void OnNetworkSpawn()
         {
@@ -107,8 +120,7 @@ namespace LastWave.Player
         {
             var keyboard = Keyboard.current;
             bool held = keyboard != null && keyboard[GameConfig.Instance.RepairKey].isPressed;
-            bool interacting = held && IsStandingOrUnknown()
-                && (FindReviveTarget() != null || (_base != null && _base.NeedsRepair && InRange()));
+            bool interacting = held && HasInteractTarget;
             if (interacting == IsInteractingLocal) return;
 
             IsInteractingLocal = interacting;

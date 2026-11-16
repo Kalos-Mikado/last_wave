@@ -25,7 +25,6 @@ namespace LastWave.Network
 
         private RoomService _room;
         private string _codeInput = string.Empty;
-        private GUIStyle _stripStyle;
 
         // Panel rows: laid out twice per event, first only measured (to size the panel), then drawn.
         private bool _measuring;
@@ -146,22 +145,25 @@ namespace LastWave.Network
         // While leaving it shows the service's message instead.
         private void DrawStrip(GameConfig config)
         {
-            var size = config.RoomStripSize;
+            // Story 017: on the room-info plate, sizes in reference pixels.
+            float scale = UiSkin.Scale;
+            var size = config.RoomStripSize * scale;
             var anchor = config.RoomStripAnchor;
-            var gap = config.RoomStripPosition;
+            var gap = config.RoomStripPosition * scale;
             var position = new Vector2(
                 anchor.x * (Screen.width - size.x) + (1f - 2f * anchor.x) * gap.x,
                 anchor.y * (Screen.height - size.y) + (1f - 2f * anchor.y) * gap.y);
             var rect = new Rect(position, size);
-            if (Event.current.type == EventType.Repaint) UiPointerBlock.Register(rect);
-
-            _stripStyle ??= new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleLeft };
-            _stripStyle.fontSize = config.RoomStripFontSize;
+            if (Event.current.type != EventType.Repaint) return;
+            UiPointerBlock.Register(rect);
+            UiSkin.Frame(rect, config.HudRoomPlateTexture, config.HudRoomPlateBorder);
 
             string text = _room.State == RoomState.InRoom
                 ? $"{config.RoomStripCodeLabel}: {_room.JoinCode}   {config.RoomStripPlayersLabel}: {_room.PlayerCount}/{config.MaxPlayers}"
                 : _room.Message;
-            GUI.Box(rect, text, _stripStyle);
+            float padding = config.HudRoomTextPadding * scale;
+            UiSkin.Label(new Rect(rect.x + padding, rect.y, rect.width - 2f * padding, rect.height), text,
+                config.RoomStripFontSize, TextAnchor.MiddleLeft, config.UiTextColor);
         }
     }
 }

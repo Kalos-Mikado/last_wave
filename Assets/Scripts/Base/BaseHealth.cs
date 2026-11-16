@@ -1,5 +1,6 @@
 using System;
 using LastWave.Config;
+using LastWave.UI;
 using LastWave.Player;
 using Unity.Collections;
 using Unity.Netcode;
@@ -315,16 +316,12 @@ namespace LastWave.Base
             Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * _config.BaseBarOffsetY);
             if (screen.z < 0f) return;
 
-            Vector2 size = _config.BaseBarSize;
+            // Story 017: the shield frame, sized in reference pixels.
+            Vector2 size = _config.BaseBarSize * UiSkin.Scale;
             var back = new Rect(screen.x - size.x * 0.5f, Screen.height - screen.y - size.y * 0.5f, size.x, size.y);
             float fraction = Mathf.Clamp01((float)_shown / _config.BaseMaxHealth);
-
-            var previousColor = GUI.color;
-            GUI.color = _config.HealthBarBackColor;
-            GUI.DrawTexture(back, Texture2D.whiteTexture);
-            GUI.color = _config.BaseBarFillColor;
-            GUI.DrawTexture(new Rect(back.x, back.y, back.width * fraction, back.height), Texture2D.whiteTexture);
-            GUI.color = previousColor;
+            UiSkin.Bar(back, _config.HudBaseBarTexture, _config.HudBaseBarBorder, _config.HudBaseBarFillInset, fraction,
+                _config.BaseBarFillColor, _config.HealthBarBackColor);
         }
     }
 }
