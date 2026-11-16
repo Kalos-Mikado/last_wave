@@ -12,6 +12,7 @@ using Unity.Netcode;
 using Unity.Netcode.Components;
 using Unity.Netcode.Transports.UTP;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -52,6 +53,13 @@ namespace LastWave.EditorTools
         private const string Map1TexturePath = "Assets/Art/Maps/map1.png"; // story 015
         private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair
         private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: hurt, down, death, get up
+        private const string MenuBackgroundTexturePath = "Assets/Art/UI/menu-background.png"; // story 016
+        private const string MenuLogoTexturePath = "Assets/Art/UI/logo-name.png";             // story 016
+        private const string ButtonTexturePath = "Assets/Art/UI/button.png";                  // story 016
+        private const string ButtonHoverTexturePath = "Assets/Art/UI/button-hover-state.png"; // story 016
+        private const string ButtonPressedTexturePath = "Assets/Art/UI/button-pressed-state.png"; // story 016
+        private const string PanelTexturePath = "Assets/Art/UI/dialog-panel.png";             // story 016
+        private const string GameIconTexturePath = "Assets/Art/UI/game-icon.png";             // story 016: the exe icon
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -74,6 +82,8 @@ namespace LastWave.EditorTools
                 EnsureReadable(path);
             }
             foreach (var path in BaseTexturePaths) EnsureReadable(path);
+            AssignUiArt(config);
+            SetGameIcon();
             var bulletPrefab = BuildBulletPrefab(material);
             var prefabList = RegisterNetworkPrefab(bulletPrefab);
             var enemyPrefab = BuildEnemyPrefab(material);
@@ -108,6 +118,30 @@ namespace LastWave.EditorTools
             config =ScriptableObject.CreateInstance<GameConfig>();
             AssetDatabase.CreateAsset(config, ConfigPath);
             return config;
+        }
+
+        // Story 016: the menu and skin pictures UiSkin draws. The trimmed ones are cut to their opaque pixels at runtime,
+        // which needs their pixels on the CPU (Read/Write).
+        private static void AssignUiArt(GameConfig config)
+        {
+            foreach (var path in new[] { MenuLogoTexturePath, ButtonTexturePath, ButtonHoverTexturePath, ButtonPressedTexturePath, PanelTexturePath })
+            {
+                EnsureReadable(path);
+            }
+            config.MenuBackgroundTexture = LoadTexture(MenuBackgroundTexturePath);
+            config.MenuLogoTexture = LoadTexture(MenuLogoTexturePath);
+            config.UiButtonTexture = LoadTexture(ButtonTexturePath);
+            config.UiButtonHoverTexture = LoadTexture(ButtonHoverTexturePath);
+            config.UiButtonPressedTexture = LoadTexture(ButtonPressedTexturePath);
+            config.UiPanelTexture = LoadTexture(PanelTexturePath);
+            EditorUtility.SetDirty(config);
+        }
+
+        // Story 016: Player Settings > Icon > Default Icon (NamedBuildTarget.Unknown is the default for every platform),
+        // which Windows uses for LastWave.exe. Saved into ProjectSettings.asset.
+        private static void SetGameIcon()
+        {
+            PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { LoadTexture(GameIconTexturePath) }, IconKind.Any);
         }
 
         private static Material LoadOrCreateMaterial()

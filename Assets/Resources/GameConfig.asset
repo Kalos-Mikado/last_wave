@@ -40,6 +40,7 @@ MonoBehaviour:
   WaveRestSeconds: 15
   MapHalfExtents: {x: 10, y: 4.2}
   EnemyStopDistance: 0.05
+  EnemyBaseHitReach: 0.25
   EnemySightRange: 4
   EnemyGiveUpRange: 7
   MiniBossAndBossChasePlayers: 0
@@ -177,6 +178,7 @@ MonoBehaviour:
   EndSpacing: 18
   RoomStripPosition: {x: 10, y: 10}
   RoomStripSize: {x: 300, y: 30}
+  RoomStripAnchor: {x: 1, y: 0}
   RoomStripFontSize: 18
   RoomStripCodeLabel: Room
   RoomStripPlayersLabel: Players
@@ -223,6 +225,12 @@ MonoBehaviour:
   PlayerSheetCellPixels: 256
   PlayerSpritePixelsPerUnit: 190
   PlayerSpriteOffsetY: -0.584
+  ShadowAlpha: 0.45
+  ShadowHeightRatio: 0.3
+  ShadowSortingOrder: -2
+  PlayerShadowWidth: 1.1
+  PlayerShadowFeetY: -0.56
+  EnemyShadowWidthScale: 1.1
   PlayerIdleFps: 6
   PlayerWalkFps: 12
   PlayerRepairFps: 8
@@ -267,6 +275,37 @@ MonoBehaviour:
   ImpactFrameCount: 4
   ImpactPixelsPerUnit: 300
   ImpactFps: 16
+  MenuBackgroundTexture: {fileID: 2800000, guid: 715e9dfb330759f4ca6bebf93bf531a3, type: 3}
+  MenuLogoTexture: {fileID: 2800000, guid: 14da841290732fb469fee9cd6fa57542, type: 3}
+  UiButtonTexture: {fileID: 2800000, guid: 3e0b8de9714ed0f46818d2d235bbcd1c, type: 3}
+  UiButtonHoverTexture: {fileID: 2800000, guid: fe34f70c81136d549aac2466416626cd, type: 3}
+  UiButtonPressedTexture: {fileID: 2800000, guid: 2d4c5e51fcc1b0c48ae73cf8ae07dd0f, type: 3}
+  UiPanelTexture: {fileID: 2800000, guid: 2f40ddb3774efec42a2b710e73e1967c, type: 3}
+  UiReferenceHeight: 1080
+  MenuLogoRect:
+    serializedVersion: 2
+    x: 60
+    y: 110
+    width: 500
+    height: 150
+  MenuPanelPosition: {x: 80, y: 300}
+  MenuPanelWidth: 460
+  MenuPanelPadding: {x: 48, y: 46}
+  MenuButtonHeight: 72
+  MenuFieldHeight: 52
+  MenuLabelHeight: 32
+  MenuRowSpacing: 14
+  MenuButtonFontSize: 28
+  MenuLabelFontSize: 22
+  MenuFieldFontSize: 26
+  MenuMessageColor: {r: 1, g: 0.6, b: 0.6, a: 1}
+  UiButtonArtScale: 0.3
+  UiPanelArtScale: 0.35
+  UiButtonBorder: {x: 80, y: 80, z: 70, w: 70}
+  UiPanelBorder: {x: 110, y: 110, z: 110, w: 110}
+  UiTextColor: {r: 1, g: 1, b: 1, a: 1}
+  UiTextShadowColor: {r: 0, g: 0, b: 0, a: 0.85}
+  UiTextShadowOffset: {x: 2, y: 2}
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

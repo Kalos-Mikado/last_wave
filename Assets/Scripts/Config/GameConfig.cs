@@ -274,6 +274,13 @@ namespace LastWave.Config
         /// </summary>
         [Min(0f)] public float EnemyStopDistance = 0.05f;
 
+        /// <summary>
+        /// Gap, in world units, between an enemy's hitbox and the base's hitbox within which the enemy hits the base.
+        /// Longer than <see cref="EnemyStopDistance"/>, so an enemy stopped at the base edge, or held a little back by
+        /// the enemies around it, is always in reach.
+        /// </summary>
+        [Min(0f)] public float EnemyBaseHitReach = 0.25f;
+
         /// <summary>A normal enemy starts chasing the nearest standing player within this distance, in world units (story 010, guessed: 4).</summary>
         [Min(0f)] public float EnemySightRange = 4f;
 
@@ -585,11 +592,21 @@ namespace LastWave.Config
         /// <summary>Vertical gap between the end screen's title, cause line and buttons, in pixels.</summary>
         [Min(0f)] public float EndSpacing = 18f;
 
-        /// <summary>Top-left corner of the room strip in the Game scene, in screen pixels.</summary>
+        /// <summary>
+        /// Gap between the room strip and the screen corner given by <see cref="RoomStripAnchor"/>, in screen pixels
+        /// (x from the left or right edge, y from the top or bottom edge).
+        /// </summary>
         public Vector2 RoomStripPosition = new Vector2(10f, 10f);
 
         /// <summary>Size of the room strip in the Game scene, in screen pixels (width, height).</summary>
         public Vector2 RoomStripSize = new Vector2(300f, 30f);
+
+        /// <summary>
+        /// Screen corner the room strip sits in, as a fraction of the screen (0,0 = top-left, 1,0 = top-right). Story 016
+        /// moved it to the top-right (1,0) so it no longer covers the base at the far left; the wave label and boss bars
+        /// hold the top centre.
+        /// </summary>
+        public Vector2 RoomStripAnchor = new Vector2(1f, 0f);
 
         /// <summary>Font size of the room strip, in pixels.</summary>
         [Min(8)] public int RoomStripFontSize = 18;
@@ -680,6 +697,26 @@ namespace LastWave.Config
         /// the player centre (where the old 1-unit box ended). The polygon hitbox (story 015) follows the sprite, so it moves with this.
         /// </summary>
         public float PlayerSpriteOffsetY = -0.584f;
+
+        // ---- Drop shadows (soft ovals under players and enemies) ----
+
+        /// <summary>Darkness of the drop shadow at its centre, 0 (none) to 1 (black). It fades to nothing at the edge.</summary>
+        [Range(0f, 1f)] public float ShadowAlpha = 0.45f;
+
+        /// <summary>Shadow height as a fraction of its width: a flat oval, as seen from the map's high side angle.</summary>
+        [Range(0.05f, 1f)] public float ShadowHeightRatio = 0.3f;
+
+        /// <summary>Sorting order of the shadows: below the base (-1) and the characters (0), above the map (-100).</summary>
+        public int ShadowSortingOrder = -2;
+
+        /// <summary>Player shadow width in world units (the soldier's body is about 0.75 wide).</summary>
+        [Min(0f)] public float PlayerShadowWidth = 1.1f;
+
+        /// <summary>Local Y of the player's feet, where the shadow is centred (the feet sit half a unit below the player's centre).</summary>
+        public float PlayerShadowFeetY = -0.56f;
+
+        /// <summary>Enemy shadow width as a multiple of its kind's ColliderSize.x (it scales with Size for the bosses).</summary>
+        [Min(0f)] public float EnemyShadowWidthScale = 1.1f;
 
         /// <summary>Frames per second of the idle loop.</summary>
         [Min(0f)] public float PlayerIdleFps = 6f;
@@ -799,6 +836,92 @@ namespace LastWave.Config
 
         /// <summary>Frames per second of the spark; 16 plays the 4 frames in a quarter of a second.</summary>
         [Min(0.1f)] public float ImpactFps = 16f;
+
+        // ---- Story 016: menu art, shared button and panel skin (UiSkin) ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Sizes and positions are reference pixels: pixels on a screen UiReferenceHeight tall, scaled with the screen
+        // height, so the layout keeps its proportions at any resolution. Every number is a first guess to tune.
+
+        /// <summary>Full-screen picture behind the room menu while not in a room (Art/UI/menu-background.png). Set by LastWaveSetup.</summary>
+        public Texture2D MenuBackgroundTexture;
+
+        /// <summary>Game name logo above the menu buttons (Art/UI/logo-name.png; its empty margins are trimmed at load). Set by LastWaveSetup.</summary>
+        public Texture2D MenuLogoTexture;
+
+        /// <summary>Button picture, normal state (Art/UI/button.png). Must be Read/Write (LastWaveSetup sets it) so its margins can be trimmed.</summary>
+        public Texture2D UiButtonTexture;
+
+        /// <summary>Button picture while the mouse is over it (Art/UI/button-hover-state.png). Same size as <see cref="UiButtonTexture"/>.</summary>
+        public Texture2D UiButtonHoverTexture;
+
+        /// <summary>Button picture while it is held down (Art/UI/button-pressed-state.png). Same size as <see cref="UiButtonTexture"/>.</summary>
+        public Texture2D UiButtonPressedTexture;
+
+        /// <summary>Panel picture behind the menu rows (Art/UI/dialog-panel.png). Must be Read/Write (LastWaveSetup sets it).</summary>
+        public Texture2D UiPanelTexture;
+
+        /// <summary>Screen height, in pixels, at which the reference-pixel sizes below are drawn 1:1 (1080). A 720 px screen draws them at 2/3.</summary>
+        [Min(1f)] public float UiReferenceHeight = 1080f;
+
+        /// <summary>Where the logo is drawn, in reference pixels from the top-left (x, y, width, height). The logo keeps its aspect inside this box.</summary>
+        public Rect MenuLogoRect = new Rect(60f, 110f, 500f, 150f);
+
+        /// <summary>Top-left corner of the menu panel, in reference pixels. Left of the base in the menu picture, under the logo.</summary>
+        public Vector2 MenuPanelPosition = new Vector2(80f, 300f);
+
+        /// <summary>Menu panel width in reference pixels. Its height follows the rows it holds.</summary>
+        [Min(1f)] public float MenuPanelWidth = 460f;
+
+        /// <summary>Space between the panel edge and its rows, in reference pixels (x left and right, y top and bottom); keeps the rows inside the panel frame.</summary>
+        public Vector2 MenuPanelPadding = new Vector2(48f, 46f);
+
+        /// <summary>Height of a menu button, in reference pixels.</summary>
+        [Min(1f)] public float MenuButtonHeight = 72f;
+
+        /// <summary>Height of the room code field, in reference pixels.</summary>
+        [Min(1f)] public float MenuFieldHeight = 52f;
+
+        /// <summary>Smallest height of a text row, in reference pixels (longer text wraps and the row grows).</summary>
+        [Min(1f)] public float MenuLabelHeight = 32f;
+
+        /// <summary>Vertical gap between two menu rows, in reference pixels.</summary>
+        [Min(0f)] public float MenuRowSpacing = 14f;
+
+        /// <summary>Font size of menu button text, in reference pixels.</summary>
+        [Min(8)] public int MenuButtonFontSize = 28;
+
+        /// <summary>Font size of menu text rows (room code hint, players, messages), in reference pixels.</summary>
+        [Min(8)] public int MenuLabelFontSize = 22;
+
+        /// <summary>Font size inside the room code field, in reference pixels.</summary>
+        [Min(8)] public int MenuFieldFontSize = 26;
+
+        /// <summary>Colour of the error/status message under the menu rows.</summary>
+        public Color MenuMessageColor = new Color(1f, 0.6f, 0.6f, 1f);
+
+        /// <summary>
+        /// Reference pixels per pixel of the trimmed button picture. Sets how big the 9-slice corners are drawn: the
+        /// trimmed button is about 1230 x 300 px, so 0.3 draws it about 370 x 90 at its natural size.
+        /// </summary>
+        [Min(0.01f)] public float UiButtonArtScale = 0.3f;
+
+        /// <summary>Reference pixels per pixel of the trimmed panel picture (about 1190 px square), so the frame and rivets keep a sensible size.</summary>
+        [Min(0.01f)] public float UiPanelArtScale = 0.35f;
+
+        /// <summary>9-slice border of the trimmed button picture, in its pixels (x left, y right, z top, w bottom): the rounded ends are never stretched.</summary>
+        public Vector4 UiButtonBorder = new Vector4(80f, 80f, 70f, 70f);
+
+        /// <summary>9-slice border of the trimmed panel picture, in its pixels (x left, y right, z top, w bottom): the frame and corner rivets are never stretched.</summary>
+        public Vector4 UiPanelBorder = new Vector4(110f, 110f, 110f, 110f);
+
+        /// <summary>Colour of button text and menu text: light, to read on the dark button and panel art.</summary>
+        public Color UiTextColor = Color.white;
+
+        /// <summary>Colour of the shadow drawn under button and menu text.</summary>
+        public Color UiTextShadowColor = new Color(0f, 0f, 0f, 0.85f);
+
+        /// <summary>Offset of the text shadow, in reference pixels (right, down).</summary>
+        public Vector2 UiTextShadowOffset = new Vector2(2f, 2f);
 
         /// <summary>The look and hitbox for an enemy kind.</summary>
         public EnemyLookDefinition GetEnemyLook(EnemyKind kind)
