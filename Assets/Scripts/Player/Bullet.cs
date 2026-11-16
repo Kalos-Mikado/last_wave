@@ -34,12 +34,37 @@ namespace LastWave.Player
         /// <summary>Damage this bullet deals: the shooter's upgraded damage given to <see cref="Launch"/>, else <see cref="GameConfig.BulletDamage"/>.</summary>
         public int Damage => _damage >= 0 ? _damage : GameConfig.Instance.BulletDamage;
 
-        /// <summary>Sets the look on every machine.</summary>
+        // Story 014: set by the editor setup (LastWaveSetup).
+        [SerializeField] private Texture2D _bulletTexture; // bullet.png: one bullet flying right, centred in the image
+        [SerializeField] private Texture2D _impactTexture; // bullet-impact.png: spark frames in the top row of a 4 x 4 grid
+
+        private SpriteRenderer _renderer;
+
+        /// <summary>
+        /// Sets the look on every machine: bullet.png, no tint. The sprite points right and the spawn rotation
+        /// (set by the shooter) turns it to the flight direction.
+        /// </summary>
         public override void OnNetworkSpawn()
         {
-            var spriteRenderer = GetComponent<SpriteRenderer>();
-            spriteRenderer.sprite = PlayerMovement.SquareSprite;
-            spriteRenderer.color = GameConfig.Instance.BulletColor;
+            var config = GameConfig.Instance;
+            _renderer = GetComponent<SpriteRenderer>();
+            _renderer.sprite = SpriteSheet.GetGrid(_bulletTexture, 1, 1, config.BulletSpritePixelsPerUnit, new Vector2(0.5f, 0.5f)).Frame(0, 0);
+            _renderer.color = Color.white;
+        }
+
+        /// <summary>
+        /// Server to everyone (host included): this bullet hit an enemy at <paramref name="position"/>. Every machine
+        /// plays the spark as a local effect. Sent just before the bullet despawns (RPC and despawn travel in order).
+        /// </summary>
+        /// <param name="position">World position of the hit.</param>
+        [Rpc(SendTo.ClientsAndHost)]
+        public void HitRpc(Vector2 position)
+        {
+            var config = GameConfig.Instance;
+            var sheet = SpriteSheet.GetGrid(_impactTexture, config.ImpactSheetColumns, config.ImpactSheetRows,
+                config.ImpactPixelsPerUnit, new Vector2(0.5f, 0.5f));
+            OneShotSpriteEffect.Play(sheet, 0, 0, config.ImpactFrameCount, config.ImpactFps, 0f, position, Vector3.one,
+                false, 0f, _renderer.sharedMaterial, _renderer.sortingOrder + 1, "BulletImpact");
         }
 
         /// <summary>
@@ -75,7 +100,11 @@ namespace LastWave.Player
 
             _hasHit = true;
             var enemy = other.GetComponentInParent<Enemy>();
-            if (enemy != null) enemy.TakeDamage(Damage);
+            if (enemy != null)
+            {
+                HitRpc(transform.position); // story 014: the spark, before the damage and despawns below
+                enemy.TakeDamage(Damage);
+            }
 
             // An enemy (damaged above) or anything else solid (a wall): the bullet ends.
             NetworkObject.Despawn();

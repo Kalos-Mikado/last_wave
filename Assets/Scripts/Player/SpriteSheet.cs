@@ -21,6 +21,9 @@ namespace LastWave.Player
         private static readonly Dictionary<(int texture, int cell, float ppu), SpriteSheet> Cache =
             new Dictionary<(int, int, float), SpriteSheet>();
 
+        private static readonly Dictionary<(int texture, int columns, int rows, float ppu, Vector2 pivot), SpriteSheet> GridCache =
+            new Dictionary<(int, int, int, float, Vector2), SpriteSheet>();
+
         private readonly Sprite[] _frames;
 
         /// <summary>Cells per row.</summary>
@@ -74,6 +77,47 @@ namespace LastWave.Player
             }
             var sheet = new SpriteSheet(frames, columns, rows);
             Cache[key] = sheet;
+            return sheet;
+        }
+
+        /// <summary>
+        /// The cached sheet for a texture cut into <paramref name="columns"/> x <paramref name="rows"/> equal cells whose
+        /// size need not be a whole number of pixels (story 014: a 1254 px image in 4 columns has 313.5 px cells). Cell edges
+        /// are rounded to whole pixels. Cells are numbered from the top-left like <see cref="Get"/>; the pivot is a
+        /// normalised point of each cell (0.5, 0.5 = centre).
+        /// </summary>
+        /// <param name="texture">The sheet image (needs no Read/Write).</param>
+        /// <param name="columns">Cells per row.</param>
+        /// <param name="rows">Number of rows.</param>
+        /// <param name="pixelsPerUnit">Pixels per world unit: sets how big the frames are drawn.</param>
+        /// <param name="pivot">Pivot inside each cell, 0 to 1 from the bottom-left.</param>
+        public static SpriteSheet GetGrid(Texture2D texture, int columns, int rows, float pixelsPerUnit, Vector2 pivot)
+        {
+            columns = Mathf.Max(1, columns);
+            rows = Mathf.Max(1, rows);
+            pixelsPerUnit = Mathf.Max(1f, pixelsPerUnit);
+            var key = (texture.GetInstanceID(), columns, rows, pixelsPerUnit, pivot);
+            if (GridCache.TryGetValue(key, out var cached) && cached._frames[0] != null) return cached;
+
+            float cellWidth = texture.width / (float)columns;
+            float cellHeight = texture.height / (float)rows;
+            var frames = new Sprite[columns * rows];
+            for (int row = 0; row < rows; row++)
+            {
+                int top = Mathf.RoundToInt(row * cellHeight);
+                int bottom = Mathf.RoundToInt((row + 1) * cellHeight);
+                for (int column = 0; column < columns; column++)
+                {
+                    int left = Mathf.RoundToInt(column * cellWidth);
+                    int right = Mathf.RoundToInt((column + 1) * cellWidth);
+                    var rect = new Rect(left, texture.height - bottom, right - left, bottom - top);
+                    var sprite = Sprite.Create(texture, rect, pivot, pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                    sprite.name = $"{texture.name}_{row}_{column}";
+                    frames[row * columns + column] = sprite;
+                }
+            }
+            var sheet = new SpriteSheet(frames, columns, rows);
+            GridCache[key] = sheet;
             return sheet;
         }
     }

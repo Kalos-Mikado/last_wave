@@ -38,6 +38,35 @@ namespace LastWave.Config
         [Min(0f)] public float SpawnInterval = 1f;
     }
 
+    /// <summary>
+    /// How one enemy kind is drawn and what its hitbox is (story 014), at size 1; the boss <c>Size</c> multiplies
+    /// everything on top (the whole object is scaled). Measured from the sheet in <c>Art/Enemies/Map1</c>.
+    /// </summary>
+    [System.Serializable]
+    public sealed class EnemyLookDefinition
+    {
+        /// <summary>
+        /// Pixels per world unit of the sheet at size 1. The body is about <c>bodyPixels / PixelsPerUnit</c> units wide,
+        /// so every kind is about 1 unit wide at size 1 and a mini-boss (size 2) and boss (size 3) come out 2x and 3x.
+        /// </summary>
+        [Min(1f)] public float PixelsPerUnit = 170f;
+
+        /// <summary>
+        /// Empty pixels between the creature's feet and the bottom of its 256 px cell (the sprite pivot is the cell
+        /// bottom). The sprite is lowered by this much so the feet sit on the bottom edge of the hitbox.
+        /// </summary>
+        [Min(0f)] public float FeetGapPixels = 43f;
+
+        /// <summary>Hitbox size (BoxCollider2D, centred on the enemy) in world units at size 1.</summary>
+        public Vector2 ColliderSize = new Vector2(0.9f, 0.65f);
+
+        /// <summary>
+        /// Animation speed multiplier for this kind (1 = the shared enemy fps). Below 1 plays every clip slower, so the
+        /// big mini-boss and boss move heavily instead of skittering like the small crawlers.
+        /// </summary>
+        [Min(0.05f)] public float AnimationSpeed = 1f;
+    }
+
     /// <summary>What an <see cref="Enemies.Enemy"/> is. Boss kinds get a health bar everyone sees (story 006).</summary>
     public enum EnemyKind : byte
     {
@@ -187,9 +216,6 @@ namespace LastWave.Config
         /// <summary>Distance from the player centre, along the aim direction, where a bullet appears.</summary>
         [Min(0f)] public float BulletSpawnOffset = 0.7f;
 
-        /// <summary>Colour of every bullet. Not a player colour, red (enemies) or blue (base).</summary>
-        public Color BulletColor = new Color(1f, 1f, 1f);
-
         /// <summary>Colour of the small marker on a player that shows the aim direction.</summary>
         public Color AimMarkerColor = new Color(0.1f, 0.1f, 0.1f);
 
@@ -234,9 +260,6 @@ namespace LastWave.Config
 
         /// <summary>When true, a mini-boss and the boss also chase players; when false they go for the base only (guessed: false).</summary>
         public bool MiniBossAndBossChasePlayers = false;
-
-        /// <summary>Enemy colour. Red is reserved for enemies (brief, Look).</summary>
-        public Color EnemyColor = new Color(0.9f, 0.15f, 0.15f);
 
         /// <summary>Colour of the placeholder base marker. Story 004 turns the marker into the real base. Blue is reserved for the base.</summary>
         public Color BaseColor = new Color(0.2f, 0.45f, 1f);
@@ -379,8 +402,8 @@ namespace LastWave.Config
         /// </summary>
         public BossDefinition[] Bosses =
         {
-            new BossDefinition { Wave = 5,  Kind = EnemyKind.MiniBoss, Size = 2f, Health = 300,  Speed = 1.2f, PlayerDamage = 20, BaseDamage = 25, Edge = SpawnEdges.Right },
-            new BossDefinition { Wave = 10, Kind = EnemyKind.Boss,     Size = 3f, Health = 1000, Speed = 1.5f, PlayerDamage = 35, BaseDamage = 50, Edge = SpawnEdges.Right },
+            new BossDefinition { Wave = 5,  Kind = EnemyKind.MiniBoss, Size = 2f, Health = 300,  Speed = 0.8f, PlayerDamage = 20, BaseDamage = 25, Edge = SpawnEdges.Right },
+            new BossDefinition { Wave = 10, Kind = EnemyKind.Boss,     Size = 3f, Health = 1000, Speed = 0.7f, PlayerDamage = 35, BaseDamage = 50, Edge = SpawnEdges.Right },
         };
 
         /// <summary>Name shown on the health bar of a <see cref="EnemyKind.MiniBoss"/>.</summary>
@@ -604,6 +627,90 @@ namespace LastWave.Config
 
         /// <summary>The aim must be at least this far sideways (the X of the unit aim direction, 0 to 1) before the soldier turns around.</summary>
         [Range(0f, 1f)] public float PlayerFacingDeadZone = 0.1f;
+
+        // ---- Story 014: enemy art, bullet art and hit spark ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Sheet numbers are measured from the art; the rest are first guesses for the designer to tune.
+
+        /// <summary>Width and height of one cell in the enemy sheets, in pixels (the sheets are 6 x 4 cells: idle, walk, attack, death rows).</summary>
+        [Min(1)] public int EnemySheetCellPixels = 256;
+
+        /// <summary>Look and hitbox of a normal enemy (basic.png). Body about 172 x 127 px, so 170 px per unit is 1.0 x 0.75 units.</summary>
+        public EnemyLookDefinition EnemyNormalLook = new EnemyLookDefinition
+        {
+            PixelsPerUnit = 170f, FeetGapPixels = 43f, ColliderSize = new Vector2(0.9f, 0.65f),
+        };
+
+        /// <summary>Look and hitbox of a mini-boss (miniboss.png). Body about 184 x 192 px, so 184 px per unit is 1.0 x 1.04 units at size 1.</summary>
+        public EnemyLookDefinition EnemyMiniBossLook = new EnemyLookDefinition
+        {
+            PixelsPerUnit = 184f, FeetGapPixels = 24f, ColliderSize = new Vector2(0.9f, 0.95f), AnimationSpeed = 0.6f,
+        };
+
+        /// <summary>Look and hitbox of the boss (boss.png). Body about 208 x 208 px, so 208 px per unit is 1.0 x 1.0 units at size 1.</summary>
+        public EnemyLookDefinition EnemyBossLook = new EnemyLookDefinition
+        {
+            PixelsPerUnit = 208f, FeetGapPixels = 25f, ColliderSize = new Vector2(0.9f, 0.92f), AnimationSpeed = 0.45f,
+        };
+
+        /// <summary>Frames per second of the enemy idle loop.</summary>
+        [Min(0f)] public float EnemyIdleFps = 6f;
+
+        /// <summary>Frames per second of the enemy walk loop.</summary>
+        [Min(0f)] public float EnemyWalkFps = 10f;
+
+        /// <summary>
+        /// Seconds the attack animation lasts from the moment an enemy's hit lands on a player or the base; the whole
+        /// row is played in this time. Keep it below the hit intervals so the pose returns to walk or idle between hits.
+        /// </summary>
+        [Min(0.01f)] public float EnemyAttackSeconds = 0.5f;
+
+        /// <summary>Frames per second of the death animation (the row is played once).</summary>
+        [Min(0f)] public float EnemyDeathFps = 10f;
+
+        /// <summary>Seconds the last death frame stays on screen before the body disappears.</summary>
+        [Min(0f)] public float EnemyDeathHoldSeconds = 0.5f;
+
+        /// <summary>An enemy counts as walking when its position changes faster than this, in world units per second.</summary>
+        [Min(0f)] public float EnemyWalkSpeedThreshold = 0.3f;
+
+        /// <summary>Seconds the walk animation continues after movement stops, so physics steps and network smoothing do not make it flicker.</summary>
+        [Min(0f)] public float EnemyWalkStopDelaySeconds = 0.12f;
+
+        /// <summary>An enemy turns to face left or right only when it moves sideways faster than this, in world units per second; otherwise it keeps its facing.</summary>
+        [Min(0f)] public float EnemyFacingMinSpeed = 0.1f;
+
+        /// <summary>The way a new enemy faces before it has moved: true = left (towards the base, which is on the left).</summary>
+        public bool EnemyStartsFacingLeft = true;
+
+        /// <summary>Pixels per world unit of bullet.png (1254 px square, the bullet is 476 x 80 px in its middle): 1000 makes the bullet about 0.48 units long.</summary>
+        [Min(1f)] public float BulletSpritePixelsPerUnit = 1000f;
+
+        /// <summary>Cell columns in bullet-impact.png (the 4 spark frames are in the top row; the image is 1254 px, so cells are 313.5 px).</summary>
+        [Min(1)] public int ImpactSheetColumns = 4;
+
+        /// <summary>Cell rows in bullet-impact.png (only the top row has frames).</summary>
+        [Min(1)] public int ImpactSheetRows = 4;
+
+        /// <summary>Spark frames played, taken from the left of the top row.</summary>
+        [Min(1)] public int ImpactFrameCount = 4;
+
+        /// <summary>Pixels per world unit of the spark cells: 300 makes a cell about 1 unit, the bright burst about 0.5.</summary>
+        [Min(1f)] public float ImpactPixelsPerUnit = 300f;
+
+        /// <summary>Frames per second of the spark; 16 plays the 4 frames in a quarter of a second.</summary>
+        [Min(0.1f)] public float ImpactFps = 16f;
+
+        /// <summary>The look and hitbox for an enemy kind.</summary>
+        public EnemyLookDefinition GetEnemyLook(EnemyKind kind)
+        {
+            switch (kind)
+            {
+                case EnemyKind.MiniBoss: return EnemyMiniBossLook;
+                case EnemyKind.Boss: return EnemyBossLook;
+                default: return EnemyNormalLook;
+            }
+        }
 
         /// <summary>
         /// DEBUG: seconds after the Game scene starts before <c>--force-outcome</c> takes effect, so every

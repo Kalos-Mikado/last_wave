@@ -25,7 +25,7 @@ namespace LastWave.Enemies
     /// enemy.TakeDamage(10);
     /// </code>
     /// </example>
-    [RequireComponent(typeof(Rigidbody2D), typeof(SpriteRenderer))]
+    [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Enemy : NetworkBehaviour
     {
         private Transform _target;
@@ -58,11 +58,27 @@ namespace LastWave.Enemies
         private int _playerDamage; // server
         private int _baseDamage;   // server
 
+        // Story 014. True on every machine while a hit on a player or the base is "just happening" (written by the
+        // server for EnemyAttackSeconds after each hit; drives the attack animation). Written only on change.
+        private readonly NetworkVariable<bool> _attacking = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private float _attackUntil; // server
+        private bool _died;         // every machine: set by DiedRpc (and by the server) just before the despawn of a kill
+
         /// <summary>Health left on the server; 0 on a client (use <see cref="ShownHealth"/> for a boss).</summary>
         public int Health => _health;
 
         /// <summary>Raised on the server just before the enemy despawns because its health reached 0.</summary>
         public event Action<Enemy> OnDied;
+
+        /// <summary>True on every machine while this enemy's hit on a player or the base is playing (see <see cref="GameConfig.EnemyAttackSeconds"/>).</summary>
+        public bool IsAttacking => _attacking.Value;
+
+        /// <summary>
+        /// True on every machine once this enemy has been killed (set just before the server despawns it, so
+        /// <c>OnNetworkDespawn</c> can tell a kill from a scene or game cleanup, which leave it false).
+        /// </summary>
+        public bool Died => _died;
 
         /// <summary>What this enemy is; same on every machine. Normal until the server launches it.</summary>
         public EnemyKind Kind => (EnemyKind)_kind.Value;
@@ -81,9 +97,8 @@ namespace LastWave.Enemies
         {
             _body = GetComponent<Rigidbody2D>();
             _collider = GetComponent<Collider2D>();
-            var spriteRenderer = GetComponent<SpriteRenderer>();
-            spriteRenderer.sprite = PlayerMovement.SquareSprite;
-            spriteRenderer.color = GameConfig.Instance.EnemyColor;
+            _died = false;
+            // The picture is drawn by EnemyAnimator on the child "Visual" (story 014); no tint, the art has its own colours.
 
             _baseScale = transform.localScale;
             _kind.OnValueChanged += HandleKindOrSizeChanged;
@@ -107,6 +122,8 @@ namespace LastWave.Enemies
         private void ApplyLook()
         {
             transform.localScale = new Vector3(_baseScale.x * _size.Value, _baseScale.y * _size.Value, _baseScale.z);
+            // Story 014: the hitbox matches the alien's body (config, at size 1; the scale above grows it with Size).
+            if (_collider is BoxCollider2D box) box.size = GameConfig.Instance.GetEnemyLook(Kind).ColliderSize;
             if (Kind != EnemyKind.Normal && !BossList.Contains(this)) BossList.Add(this);
         }
 
@@ -133,7 +150,8 @@ namespace LastWave.Enemies
             _stopDistance = config.EnemyStopDistance * size; // a bigger body stops proportionally further out
             _canChase = kind == EnemyKind.Normal || config.MiniBossAndBossChasePlayers;
             SetChased(null);
-            _playerDamage = playerDamage >= 0 ? playerDamage : config.EnemyPlayerDamage;
+            _attackUntil = 0f;
+            _playerDamage =playerDamage >= 0 ? playerDamage : config.EnemyPlayerDamage;
             _baseDamage = baseDamage >= 0 ? baseDamage : config.EnemyBaseDamage;
 
             if (kind == EnemyKind.Normal && size == 1f) return; // nothing to tell the clients
@@ -167,12 +185,29 @@ namespace LastWave.Enemies
             if (_health > 0) return;
 
             OnDied?.Invoke(this);
+            // Story 014: tell every machine this is a kill BEFORE the despawn (RPC and despawn travel in order), so each
+            // machine can play the death animation as a local effect. A despawn without this call (end of game,
+            // scene cleanup) plays nothing.
+            _died = true;
+            DiedRpc();
             NetworkObject.Despawn();
+        }
+
+        /// <summary>Server to everyone (host included): this enemy was killed and is about to despawn. Sets <see cref="Died"/>.</summary>
+        [Rpc(SendTo.ClientsAndHost)]
+        public void DiedRpc()
+        {
+            _died = true;
         }
 
         private void Update()
         {
-            if (!IsServer || !IsSpawned || _target == null) return;
+            if (!IsServer || !IsSpawned) return;
+            if (_target == null)
+            {
+                SyncAttackFlag();
+                return;
+            }
 
             UpdateChaseTarget();
 
@@ -200,6 +235,22 @@ namespace LastWave.Enemies
 
             HitBase(atBase);
             HitPlayers();
+            SyncAttackFlag();
+        }
+
+        // Story 014: a hit just landed; the attack pose is shown for EnemyAttackSeconds, longer for kinds that animate
+        // slower (the clip is stretched by the same AnimationSpeed in EnemyAnimator, so it plays to the end).
+        private void MarkAttack()
+        {
+            var config = GameConfig.Instance;
+            _attackUntil = Time.time + config.EnemyAttackSeconds / config.GetEnemyLook(Kind).AnimationSpeed;
+        }
+
+        // Server: writes the synced flag only when it changes, so it costs two messages per hit.
+        private void SyncAttackFlag()
+        {
+            bool attacking = Time.time < _attackUntil;
+            if (_attacking.Value != attacking) _attacking.Value = attacking;
         }
 
         // Story 010, server only. Hysteresis: a chase starts on the nearest standing player within SightRange and
@@ -286,6 +337,7 @@ namespace LastWave.Enemies
                 if (now < nextHit) continue;
 
                 health.TakeDamage(_playerDamage);
+                MarkAttack();
                 _playerNextHit[life] = now + config.EnemyPlayerHitInterval;
             }
         }
@@ -309,6 +361,7 @@ namespace LastWave.Enemies
             if (Time.time < _nextHitTime) return;
 
             _base.TakeDamage(_baseDamage);
+            MarkAttack();
             _nextHitTime = Time.time + config.EnemyBaseHitInterval;
         }
     }

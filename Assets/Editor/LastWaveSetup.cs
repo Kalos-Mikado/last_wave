@@ -35,9 +35,13 @@ namespace LastWave.EditorTools
         private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
         private const string BulletPrefabPath = "Assets/Prefabs/Bullet.prefab";
         private const string DefaultPrefabListPath = "Assets/DefaultNetworkPrefabs.asset"; // created by Netcode's importer
-        private const float BulletVisualSize = 0.25f; // world units; asset construction, not gameplay tuning
+        private const float BulletColliderRadius = 0.125f; // world units, same hit size as the old 0.25 square bullet; asset construction, not gameplay tuning
+        private const string BulletTexturePath = "Assets/Art/bullet.png";               // story 014
+        private const string BulletImpactTexturePath = "Assets/Art/bullet-impact.png";  // story 014
         private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
-        private const float EnemyVisualSize = 0.8f; // world units; asset construction, not gameplay tuning
+        private const string EnemyNormalSheetPath = "Assets/Art/Enemies/Map1/basic.png";      // story 014
+        private const string EnemyMiniBossSheetPath = "Assets/Art/Enemies/Map1/miniboss.png"; // story 014
+        private const string EnemyBossSheetPath = "Assets/Art/Enemies/Map1/boss.png";         // story 014
         private const float BaseVisualSize = 1.5f;
         private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair
         private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: hurt, down, death, get up
@@ -106,9 +110,11 @@ namespace LastWave.EditorTools
 
         private static GameObject BuildBulletPrefab(Material material)
         {
+            var bulletTexture = LoadTexture(BulletTexturePath);
+            var impactTexture = LoadTexture(BulletImpactTexturePath);
+
             var bullet = new GameObject("Bullet");
-            bullet.transform.localScale = new Vector3(BulletVisualSize, BulletVisualSize, 1f);
-            bullet.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn
+            bullet.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite is assigned at spawn; size comes from config (pixels per unit)
             var body = bullet.AddComponent<Rigidbody2D>();
             body.bodyType = RigidbodyType2D.Kinematic; // moved by velocity on the server, placed by NetworkTransform elsewhere
             body.gravityScale = 0f;
@@ -116,7 +122,7 @@ namespace LastWave.EditorTools
             body.useFullKinematicContacts = true;
             var collider = bullet.AddComponent<CircleCollider2D>();
             collider.isTrigger = true;
-            collider.radius = 0.5f; // half the unit sprite; the transform scale shrinks it with the visual
+            collider.radius = BulletColliderRadius;
             bullet.AddComponent<NetworkObject>();
             var networkTransform = bullet.AddComponent<NetworkTransform>(); // default AuthorityMode = Server
             networkTransform.SyncPositionZ = false;
@@ -126,20 +132,37 @@ namespace LastWave.EditorTools
             networkTransform.SyncScaleX = false;
             networkTransform.SyncScaleY = false;
             networkTransform.SyncScaleZ = false;
-            bullet.AddComponent<Bullet>();
+            var bulletScript = bullet.AddComponent<Bullet>();
+            var bulletSerialized = new SerializedObject(bulletScript);
+            bulletSerialized.FindProperty("_bulletTexture").objectReferenceValue = bulletTexture;
+            bulletSerialized.FindProperty("_impactTexture").objectReferenceValue = impactTexture;
+            bulletSerialized.ApplyModifiedPropertiesWithoutUndo();
             return SaveNetworkPrefab(bullet, BulletPrefabPath);
+        }
+
+        private static Texture2D LoadTexture(string path)
+        {
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture == null) throw new System.InvalidOperationException($"Texture not found at {path}.");
+            return texture;
         }
 
         private static GameObject BuildEnemyPrefab(Material material)
         {
+            var normalSheet = LoadTexture(EnemyNormalSheetPath);
+            var miniBossSheet = LoadTexture(EnemyMiniBossSheetPath);
+            var bossSheet = LoadTexture(EnemyBossSheetPath);
+
+            // Root scale 1: the server's Size multiplier (2, 3 for the bosses) is the only scaling, applied by Enemy.ApplyLook.
             var enemy = new GameObject("Enemy");
-            // Collider 0.8 units wide: well above the ~0.3 a bullet (0.25 wide, 14 units/s) can tunnel through.
-            enemy.transform.localScale = new Vector3(EnemyVisualSize, EnemyVisualSize, 1f);
-            enemy.AddComponent<SpriteRenderer>().sharedMaterial = material; // sprite and colour are set at spawn
             var body = enemy.AddComponent<Rigidbody2D>();
             body.bodyType = RigidbodyType2D.Kinematic; // moved by velocity on the server, placed by NetworkTransform elsewhere
+            // Smooth between 50 Hz physics steps: without it the host sees big enemies stutter at high frame rates.
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
             body.gravityScale = 0f;
-            enemy.AddComponent<BoxCollider2D>().size = Vector2.one; // solid (not a trigger) so bullets register the hit
+            // Solid (not a trigger) so bullets register the hit. Hitbox matches the alien's body (story 014); Enemy.ApplyLook
+            // sets the size per kind at spawn, this is the normal enemy's. Wider than the ~0.3 a bullet moves per physics step.
+            enemy.AddComponent<BoxCollider2D>().size = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath).EnemyNormalLook.ColliderSize;
             enemy.AddComponent<NetworkObject>();
             var networkTransform = enemy.AddComponent<NetworkTransform>(); // default AuthorityMode = Server
             networkTransform.SyncPositionZ = false;
@@ -150,6 +173,20 @@ namespace LastWave.EditorTools
             networkTransform.SyncScaleY = false;
             networkTransform.SyncScaleZ = false;
             enemy.AddComponent<Enemy>();
+
+            // The alien is a child so its pivot (feet) can sit at the bottom of the collider; sprites are cut at runtime (SpriteSheet).
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(enemy.transform, false);
+            var visualRenderer = visual.AddComponent<SpriteRenderer>();
+            visualRenderer.sharedMaterial = material;
+
+            var animator = enemy.AddComponent<EnemyAnimator>();
+            var animatorSerialized = new SerializedObject(animator);
+            animatorSerialized.FindProperty("_renderer").objectReferenceValue = visualRenderer;
+            animatorSerialized.FindProperty("_normalSheet").objectReferenceValue = normalSheet;
+            animatorSerialized.FindProperty("_miniBossSheet").objectReferenceValue = miniBossSheet;
+            animatorSerialized.FindProperty("_bossSheet").objectReferenceValue = bossSheet;
+            animatorSerialized.ApplyModifiedPropertiesWithoutUndo();
             return SaveNetworkPrefab(enemy, EnemyPrefabPath);
         }
 

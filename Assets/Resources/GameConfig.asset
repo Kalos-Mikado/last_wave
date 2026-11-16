@@ -30,7 +30,6 @@ MonoBehaviour:
   BulletDamage: 10
   BulletLifetime: 1.5
   BulletSpawnOffset: 0.7
-  BulletColor: {r: 1, g: 1, b: 1, a: 1}
   AimMarkerColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   HealthBarSize: {x: 60, y: 8}
   HealthBarOffsetY: 0.9
@@ -44,7 +43,6 @@ MonoBehaviour:
   EnemySightRange: 4
   EnemyGiveUpRange: 7
   MiniBossAndBossChasePlayers: 0
-  EnemyColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
   BaseColor: {r: 0.2, g: 0.45, b: 1, a: 1}
   WaveLabelFontSize: 28
   Waves:
@@ -126,7 +124,7 @@ MonoBehaviour:
     Kind: 1
     Size: 2
     Health: 300
-    Speed: 1.2
+    Speed: 0.8
     PlayerDamage: 20
     BaseDamage: 25
     Edge: 8
@@ -134,7 +132,7 @@ MonoBehaviour:
     Kind: 2
     Size: 3
     Health: 1000
-    Speed: 1.5
+    Speed: 0.7
     PlayerDamage: 35
     BaseDamage: 50
     Edge: 8
@@ -223,6 +221,37 @@ MonoBehaviour:
   PlayerWalkSpeedThreshold: 0.3
   PlayerWalkStopDelaySeconds: 0.12
   PlayerFacingDeadZone: 0.1
+  EnemySheetCellPixels: 256
+  EnemyNormalLook:
+    PixelsPerUnit: 170
+    FeetGapPixels: 43
+    ColliderSize: {x: 0.9, y: 0.65}
+    AnimationSpeed: 1
+  EnemyMiniBossLook:
+    PixelsPerUnit: 184
+    FeetGapPixels: 24
+    ColliderSize: {x: 0.9, y: 0.95}
+    AnimationSpeed: 0.6
+  EnemyBossLook:
+    PixelsPerUnit: 208
+    FeetGapPixels: 25
+    ColliderSize: {x: 0.9, y: 0.92}
+    AnimationSpeed: 0.45
+  EnemyIdleFps: 6
+  EnemyWalkFps: 10
+  EnemyAttackSeconds: 0.5
+  EnemyDeathFps: 10
+  EnemyDeathHoldSeconds: 0.5
+  EnemyWalkSpeedThreshold: 0.3
+  EnemyWalkStopDelaySeconds: 0.12
+  EnemyFacingMinSpeed: 0.1
+  EnemyStartsFacingLeft: 1
+  BulletSpritePixelsPerUnit: 1000
+  ImpactSheetColumns: 4
+  ImpactSheetRows: 4
+  ImpactFrameCount: 4
+  ImpactPixelsPerUnit: 300
+  ImpactFps: 16
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game
