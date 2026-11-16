@@ -101,7 +101,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1066876986759981467}
   - component: {fileID: 5355931899469339210}
-  - component: {fileID: 4089070184306705932}
+  - component: {fileID: 8227906095768465657}
   - component: {fileID: 6583772533625666109}
   - component: {fileID: 3291500580832799556}
   - component: {fileID: 5499043284134205414}
@@ -161,8 +161,8 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 4
---- !u!61 &4089070184306705932
-BoxCollider2D:
+--- !u!60 &8227906095768465657
+PolygonCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -205,8 +205,9 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.75, y: 1}
-  m_EdgeRadius: 0
+  m_Points:
+    m_Paths: []
+  m_UseDelaunayMesh: 1
 --- !u!114 &6583772533625666109
 MonoBehaviour:
   m_ObjectHideFlags: 0

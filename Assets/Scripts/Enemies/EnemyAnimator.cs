@@ -20,6 +20,12 @@ namespace LastWave.Enemies
     /// The death row is not played on the enemy itself (its NetworkObject is gone at once) but by
     /// <see cref="OneShotSpriteEffect"/>, spawned in <see cref="OnNetworkDespawn"/> on every machine.
     /// </para>
+    /// <para>
+    /// Story 015: also owns the enemy's solid hitbox, a <see cref="PolygonCollider2D"/> on the root traced ONCE per kind
+    /// from the idle row's first frame (<see cref="SpriteHitbox"/>, cached across enemies), never per animation frame.
+    /// The root scale (boss Size) scales it. It is mirrored only when the facing (flipX) changes. Every machine traces the
+    /// same polygon; the server's copy decides bullet hits, contact damage and the base stop.
+    /// </para>
     /// </summary>
     public sealed class EnemyAnimator : NetworkBehaviour
     {
@@ -44,12 +50,17 @@ namespace LastWave.Enemies
         private float _movingUntil;
         private bool _wasAttacking;
         private Vector2 _lastPosition;
+        private PolygonCollider2D _hitbox;     // story 015: the root's solid hitbox
+        private SpriteHitbox _hitboxShape;     // the current kind's traced polygon (both facings)
+        private bool _hitboxFacingRight;       // which facing is written into _hitbox
 
         /// <summary>Picks the sheet for the current kind, sets the starting facing and starts reading movement.</summary>
         public override void OnNetworkSpawn()
         {
             _config = GameConfig.Instance;
             _enemy = GetComponent<Enemy>();
+            _hitbox = GetComponent<PolygonCollider2D>();
+            _hitboxShape = null;
             _renderer.flipX = _config.EnemyStartsFacingLeft;
             _clip = Clip.None;
             _wasAttacking = false;
@@ -78,10 +89,29 @@ namespace LastWave.Enemies
             Texture2D texture = kind == EnemyKind.Boss ? _bossSheet : kind == EnemyKind.MiniBoss ? _miniBossSheet : _normalSheet;
             _sheet = SpriteSheet.Get(texture, _config.EnemySheetCellPixels, look.PixelsPerUnit);
 
-            // The sprite pivot is the bottom of its cell and the feet sit FeetGapPixels above it; the hitbox is centred
-            // on the enemy, so put the feet on the bottom edge of the hitbox. The root scale (Size) scales this too.
+            // The sprite pivot is the bottom of its cell and the feet sit FeetGapPixels above it; the feet go
+            // ColliderSize.y / 2 below the enemy centre (where the old box ended). The root scale (Size) scales this too.
             float y = -look.ColliderSize.y * 0.5f - look.FeetGapPixels / look.PixelsPerUnit;
             _renderer.transform.localPosition = new Vector3(0f, y, 0f);
+
+            // Story 015: the kind's polygon, from idle frame 1, in root space (the Visual's offset included).
+            if (_hitbox != null)
+            {
+                var visual = _renderer.transform;
+                _hitboxShape = SpriteHitbox.Get(_sheet.Frame(RowIdle, 0), visual.localPosition, visual.localScale,
+                    _config.EnemyHitboxTolerance, _config.HitboxMinPathArea);
+                _hitboxFacingRight = !_renderer.flipX;
+                _hitboxShape.ApplyTo(_hitbox, _hitboxFacingRight);
+            }
+        }
+
+        // Story 015: rewrites the polygon only when the facing actually changed (a few dozen points, no per-frame cost).
+        private void SyncHitboxFacing()
+        {
+            bool right = !_renderer.flipX;
+            if (_hitboxShape == null || right == _hitboxFacingRight) return;
+            _hitboxFacingRight = right;
+            _hitboxShape.ApplyTo(_hitbox, right);
         }
 
         private void Update()
@@ -91,6 +121,7 @@ namespace LastWave.Enemies
 
             if (_enemy.Kind != _shownKind) ApplyKind(_enemy.Kind);
             TrackMovement(now);
+            SyncHitboxFacing();
 
             bool attacking = _enemy.IsAttacking;
             if (attacking && !_wasAttacking) _attackStart = now;

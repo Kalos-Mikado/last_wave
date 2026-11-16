@@ -34,6 +34,7 @@ namespace LastWave.Enemies
         private float _stopDistance;
         private Rigidbody2D _body;
         private BaseHealth _base;
+        private Collider2D _baseCollider; // server: the base's polygon hitbox, found once in Launch (story 015)
         private bool _wasAtBase;
         private float _nextHitTime;
         private Collider2D _collider;
@@ -122,8 +123,7 @@ namespace LastWave.Enemies
         private void ApplyLook()
         {
             transform.localScale = new Vector3(_baseScale.x * _size.Value, _baseScale.y * _size.Value, _baseScale.z);
-            // Story 014: the hitbox matches the alien's body (config, at size 1; the scale above grows it with Size).
-            if (_collider is BoxCollider2D box) box.size = GameConfig.Instance.GetEnemyLook(Kind).ColliderSize;
+            // Story 015: the polygon hitbox is traced from the kind's sprite by EnemyAnimator (the scale above grows it with Size).
             if (Kind != EnemyKind.Normal && !BossList.Contains(this)) BossList.Add(this);
         }
 
@@ -145,9 +145,13 @@ namespace LastWave.Enemies
             var config = GameConfig.Instance;
             _target = target;
             _base = target != null ? target.GetComponent<BaseHealth>() : null; // null: walks there but hits nothing
+            _baseCollider = _base != null ? _base.Collider : target != null ? target.GetComponent<Collider2D>() : null;
             _speed = speed;
             _health = health;
-            _stopDistance = config.EnemyStopDistance * size; // a bigger body stops proportionally further out
+            // Fallback only (story 015), when the base has no usable collider: stop at about the base's edge from the
+            // centre distance: half the old base box + half this enemy's body (scaled by Size) + the gap.
+            _stopDistance = config.BaseColliderSize.x * 0.5f + config.GetEnemyLook(kind).ColliderSize.x * size * 0.5f
+                            + config.EnemyStopDistance;
             _canChase = kind == EnemyKind.Normal || config.MiniBossAndBossChasePlayers;
             SetChased(null);
             _attackUntil = 0f;
@@ -222,20 +226,56 @@ namespace LastWave.Enemies
                 // The base is not hit while chasing.
                 bool touching = InContact(_collider.Distance(_chasedCollider), GameConfig.Instance.EnemyContactRange);
                 Vector2 toPlayer = (Vector2)_chased.transform.position - _body.position;
-                _body.linearVelocity = touching ? Vector2.zero : toPlayer.normalized * _speed;
+                _body.linearVelocity = touching ? Vector2.zero : KeepOutOfBase(toPlayer.normalized * _speed);
             }
             else
             {
-                // Stay put once close enough to the base; otherwise walk straight at it. Never overshoots: the
-                // stop distance is far larger than one frame of walking.
+                // Stay put once at the base's edge; otherwise walk straight at its centre. Story 015: the edge is the real
+                // gap between the two polygon hitboxes; a step that overlaps a little gives a negative gap, still a stop.
                 Vector2 toBase = (Vector2)_target.position - _body.position;
-                atBase = toBase.magnitude <= _stopDistance;
-                _body.linearVelocity = atBase ? Vector2.zero : toBase.normalized * _speed;
+                atBase = IsAtBase(toBase);
+                _body.linearVelocity = atBase ? Vector2.zero : KeepOutOfBase(toBase.normalized * _speed);
             }
 
             HitBase(atBase);
             HitPlayers();
             SyncAttackFlag();
+        }
+
+        // Story 015: enemies are kinematic, so colliders never stop them. Any move (walking to the base or chasing a player
+        // standing near it) that would carry this enemy's hitbox into the base's within the next physics step loses its
+        // component into the base, so the enemy slides along the base edge instead of walking through it; an enemy
+        // already inside is pushed back out.
+        private Vector2 KeepOutOfBase(Vector2 velocity)
+        {
+            if (velocity == Vector2.zero || _baseCollider == null || !_baseCollider.enabled || _collider == null || !_collider.enabled)
+                return velocity;
+            ColliderDistance2D gap = _collider.Distance(_baseCollider);
+            if (!gap.isValid) return velocity;
+
+            float stopGap = GameConfig.Instance.EnemyStopDistance;
+            if (gap.distance > velocity.magnitude * Time.fixedDeltaTime + stopGap) return velocity; // not close yet
+
+            // The separation direction, from the base towards this enemy (sanity-checked against the centres).
+            Vector2 outward = gap.normal;
+            if (Vector2.Dot(outward, _body.position - (Vector2)_baseCollider.bounds.center) < 0f) outward = -outward;
+
+            float into = Vector2.Dot(velocity, outward);
+            if (into < 0f) velocity -= into * outward;               // drop the part heading into the base
+            if (gap.distance < 0f) velocity += outward * _speed;     // overlapping already: step back out
+            return velocity;
+        }
+
+        // Story 015: at the base when the gap between this enemy's hitbox and the base's is at most EnemyStopDistance.
+        // The old centre-distance rule is kept only for a base without a usable collider (none, disabled, or no shape yet).
+        private bool IsAtBase(Vector2 toBase)
+        {
+            if (_baseCollider != null && _baseCollider.enabled && _collider != null && _collider.enabled)
+            {
+                ColliderDistance2D gap = _collider.Distance(_baseCollider);
+                if (gap.isValid) return gap.distance <= GameConfig.Instance.EnemyStopDistance;
+            }
+            return toBase.magnitude <= _stopDistance;
         }
 
         // Story 014: a hit just landed; the attack pose is shown for EnemyAttackSeconds, longer for kinds that animate

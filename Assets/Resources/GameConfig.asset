@@ -38,8 +38,8 @@ MonoBehaviour:
   DebugDamageKey: 25
   FirstWaveDelaySeconds: 20
   WaveRestSeconds: 15
-  MapHalfExtents: {x: 10, y: 5.5}
-  EnemyStopDistance: 1.2
+  MapHalfExtents: {x: 10, y: 4.2}
+  EnemyStopDistance: 0.05
   EnemySightRange: 4
   EnemyGiveUpRange: 7
   MiniBossAndBossChasePlayers: 0
@@ -102,9 +102,24 @@ MonoBehaviour:
   RepairPerSecond: 15
   RepairRange: 3
   RepairKey: 19
-  BaseDamagedColor: {r: 0.3, g: 0.08, b: 0.22, a: 1}
   BaseBarSize: {x: 160, y: 12}
-  BaseBarOffsetY: 1.2
+  BaseBarOffsetY: 2
+  BaseDamagedThreshold: 0.5
+  BaseWorldWidth: 3
+  BaseOutlinePixelWidth: 1228
+  BaseOutlineBottomPixels: {x: 1121, y: 1125, z: 1135}
+  BaseOutlineCenterPixels: {x: 625, y: 625, z: 622}
+  BaseGroundOffsetY: -0.75
+  BaseColliderSize: {x: 2.9, y: 2.3}
+  MapSortingOrder: -100
+  MapFit: 0
+  MapTopBandFraction: 0.094
+  MapBottomBandFraction: 0.11
+  MapWallThickness: 2
+  BaseHitboxTolerance: 0.06
+  PlayerHitboxTolerance: 0.06
+  EnemyHitboxTolerance: 0.05
+  HitboxMinPathArea: 0.02
   BaseBarFillColor: {r: 0.35, g: 0.65, b: 1, a: 1}
   ReviveHoldSeconds: 3
   ReviveRange: 2
@@ -207,7 +222,6 @@ MonoBehaviour:
   PlayerSheetCellPixels: 256
   PlayerSpritePixelsPerUnit: 190
   PlayerSpriteOffsetY: -0.584
-  PlayerColliderSize: {x: 0.75, y: 1}
   PlayerIdleFps: 6
   PlayerWalkFps: 12
   PlayerRepairFps: 8

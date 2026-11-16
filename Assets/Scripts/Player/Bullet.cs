@@ -96,6 +96,7 @@ namespace LastWave.Player
             if (!IsServer || !IsSpawned) return;
             if (other.isTrigger) return; // other bullets, sensors
             if (other.GetComponentInParent<PlayerHealth>() != null) return; // friendly fire is off: fly through players
+            if (other.GetComponentInParent<LastWave.Map.MapWalls>() != null) return; // story 015: the map walls only stop players; bullets fly on and expire
             if (_hasHit) return; // two overlaps in one physics step must not hit twice
 
             _hasHit = true;
@@ -106,7 +107,7 @@ namespace LastWave.Player
                 enemy.TakeDamage(Damage);
             }
 
-            // An enemy (damaged above) or anything else solid (a wall): the bullet ends.
+            // An enemy (damaged above) or anything else solid (the base): the bullet ends.
             NetworkObject.Despawn();
         }
     }

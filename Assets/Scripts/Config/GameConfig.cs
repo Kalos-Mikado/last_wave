@@ -18,6 +18,15 @@ namespace LastWave.Config
         Right = 8,
     }
 
+    /// <summary>How the map picture is fitted to the camera view (story 015, <see cref="GameConfig.MapFit"/>).</summary>
+    public enum MapFitMode
+    {
+        /// <summary>Width and height scaled separately so the whole picture fills the view exactly (no bars, no crop; the picture is stretched).</summary>
+        Stretch = 0,
+        /// <summary>One scale (the larger ratio) so the picture covers the view without distortion; the overflow is cropped.</summary>
+        Cover = 1,
+    }
+
     /// <summary>One row of the wave table in <see cref="GameConfig.Waves"/>.</summary>
     [System.Serializable]
     public sealed class WaveDefinition
@@ -57,7 +66,11 @@ namespace LastWave.Config
         /// </summary>
         [Min(0f)] public float FeetGapPixels = 43f;
 
-        /// <summary>Hitbox size (BoxCollider2D, centred on the enemy) in world units at size 1.</summary>
+        /// <summary>
+        /// Body size in world units at size 1 (the old box hitbox). Since story 015 the hitbox is a polygon traced from the
+        /// sprite, so this no longer sizes a collider: Y still places the sprite (the feet sit Y/2 below the enemy centre),
+        /// and X is used only by the fallback base stop distance when the base has no usable collider.
+        /// </summary>
         public Vector2 ColliderSize = new Vector2(0.9f, 0.65f);
 
         /// <summary>
@@ -246,11 +259,20 @@ namespace LastWave.Config
         /// <summary>Seconds of rest after a wave is cleared, before the next one (story 012 raised it from 10 to 15 so the upgrade cards can be read; own call).</summary>
         [Min(0f)] public float WaveRestSeconds = 15f;
 
-        /// <summary>Half width and half height of the play area, in world units; enemies spawn on its edges.</summary>
-        public Vector2 MapHalfExtents = new Vector2(10f, 5.5f);
+        /// <summary>
+        /// Half width and half height of the play area, in world units; enemies spawn on its edges (right edge: y from
+        /// -Y to +Y). Story 015: Y is 4.2 so enemies spawn and walk in the grass lane between the map walls (top wall at
+        /// y 4.87, bottom wall at -4.68 for the 12-unit view): 4.68 minus a normal enemy's half body and a small margin.
+        /// </summary>
+        public Vector2 MapHalfExtents = new Vector2(10f, 4.2f);
 
-        /// <summary>Enemies walk towards the base point and stop this far from it, in world units.</summary>
-        [Min(0f)] public float EnemyStopDistance = 1.2f;
+        /// <summary>
+        /// Gap, in world units, between an enemy's hitbox and the base's hitbox where the enemy stops and hits the base.
+        /// Story 015: measured with Collider2D.Distance between the two polygon hitboxes. Only when the base has no usable
+        /// collider does the old centre-distance fallback apply: half <see cref="BaseColliderSize"/>.x plus half the enemy's
+        /// ColliderSize.x x Size plus this gap.
+        /// </summary>
+        [Min(0f)] public float EnemyStopDistance = 0.05f;
 
         /// <summary>A normal enemy starts chasing the nearest standing player within this distance, in world units (story 010, guessed: 4).</summary>
         [Min(0f)] public float EnemySightRange = 4f;
@@ -261,7 +283,7 @@ namespace LastWave.Config
         /// <summary>When true, a mini-boss and the boss also chase players; when false they go for the base only (guessed: false).</summary>
         public bool MiniBossAndBossChasePlayers = false;
 
-        /// <summary>Colour of the placeholder base marker. Story 004 turns the marker into the real base. Blue is reserved for the base.</summary>
+        /// <summary>Colour of the placeholder base marker. Since story 015 the base shows images and this is no longer used by the scene (kept only because WaveManager still reads it for an optional marker).</summary>
         public Color BaseColor = new Color(0.2f, 0.45f, 1f);
 
         /// <summary>Font size of the "Wave n / total" label, in pixels.</summary>
@@ -308,14 +330,91 @@ namespace LastWave.Config
         /// <summary>Key the player holds to repair the base.</summary>
         public UnityEngine.InputSystem.Key RepairKey = UnityEngine.InputSystem.Key.E;
 
-        /// <summary>Base colour at 0 health. The base blends from <see cref="BaseColor"/> (full health) to this as health drops: darker, red-tinted blue.</summary>
-        public Color BaseDamagedColor = new Color(0.30f, 0.08f, 0.22f);
-
         /// <summary>Base health bar size in screen pixels (width, height).</summary>
         public Vector2 BaseBarSize = new Vector2(160f, 12f);
 
-        /// <summary>How far above the base centre the bar sits, in world units.</summary>
-        public float BaseBarOffsetY = 1.2f;
+        /// <summary>How far above the base centre (<see cref="BasePosition"/>) the bar sits, in world units. Story 015: raised to clear the taller base image (top is about 1.7 above the centre).</summary>
+        public float BaseBarOffsetY = 2.0f;
+
+        // ---- Story 015: base images and map background ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+
+        /// <summary>
+        /// The base image is intact while health is ABOVE this fraction of <see cref="BaseMaxHealth"/>; from this
+        /// fraction down to just above 0 it shows the damaged image; at 0 the destroyed image (default 0.5).
+        /// </summary>
+        [Range(0f, 1f)] public float BaseDamagedThreshold = 0.5f;
+
+        /// <summary>How wide the base is drawn in the game, in world units (outline width of the intact image; default 3).</summary>
+        [Min(0.1f)] public float BaseWorldWidth = 3f;
+
+        /// <summary>Width in image pixels of the intact base outline (about 1228 of the 1254 px image). With <see cref="BaseWorldWidth"/> it sets the pixels per unit shared by all three images.</summary>
+        [Min(1f)] public float BaseOutlinePixelWidth = 1228f;
+
+        /// <summary>
+        /// Row of the lowest outline pixel, counted from the TOP of each 1254 px image, per state
+        /// (x = intact, y = damaged, z = destroyed). It becomes the sprite pivot, so the three bases stand on the same
+        /// ground line and do not jump when the state changes.
+        /// </summary>
+        public Vector3 BaseOutlineBottomPixels = new Vector3(1121f, 1125f, 1135f);
+
+        /// <summary>
+        /// Column of the horizontal middle of the outline, counted from the LEFT of each image, per state
+        /// (x = intact, y = damaged, z = destroyed). It becomes the sprite pivot, so the base stays centred on <see cref="BasePosition"/>.
+        /// </summary>
+        public Vector3 BaseOutlineCenterPixels = new Vector3(625f, 625f, 622f);
+
+        /// <summary>Where the base's ground line (outline bottom) sits, in world units relative to <see cref="BasePosition"/> (default -0.75: the bottom of the old 1.5 unit square).</summary>
+        public float BaseGroundOffsetY = -0.75f;
+
+        /// <summary>
+        /// Approximate base body size in world units (the old box hitbox). Since story 015 the base hitbox is a polygon
+        /// traced from each base image, so this sizes no collider; only X is used, by the enemy's fallback stop distance
+        /// when the base has no usable collider.
+        /// </summary>
+        public Vector2 BaseColliderSize = new Vector2(2.9f, 2.3f);
+
+        /// <summary>Sorting order of the map background sprite. Keep it below every other sprite (the base is -1, characters 0).</summary>
+        public int MapSortingOrder = -100;
+
+        /// <summary>
+        /// How the map picture fits the camera view. Stretch (default): the whole picture fills the view exactly, stretched
+        /// horizontally at 16:9 (about 18%). Cover: no distortion, the top and bottom are cropped.
+        /// </summary>
+        public MapFitMode MapFit = MapFitMode.Stretch;
+
+        /// <summary>
+        /// Height of the rock band along the TOP of map1.png, as a fraction of the picture's height (0.094). The top wall's
+        /// inner edge sits this far below the top of the displayed picture.
+        /// </summary>
+        [Range(0f, 0.5f)] public float MapTopBandFraction = 0.094f;
+
+        /// <summary>
+        /// Height of the rock band along the BOTTOM of map1.png, as a fraction of the picture's height (0.11). The bottom
+        /// wall's inner edge sits this far above the bottom of the displayed picture.
+        /// </summary>
+        [Range(0f, 0.5f)] public float MapBottomBandFraction = 0.11f;
+
+        /// <summary>Thickness of each solid map wall (top, bottom, left, right), in world units. Thick enough that a player never tunnels through.</summary>
+        [Min(0.1f)] public float MapWallThickness = 2f;
+
+        /// <summary>
+        /// Outline simplification for the base hitbox polygons (Ramer-Douglas-Peucker tolerance, world units): an outline
+        /// point closer than this to the simplified line is dropped. Larger = fewer points, rougher fit.
+        /// </summary>
+        [Min(0.001f)] public float BaseHitboxTolerance = 0.06f;
+
+        /// <summary>
+        /// Outline simplification for the player hitbox polygon (world units). Raise it if the player snags on the walls or
+        /// the base (fewer points = smoother sliding).
+        /// </summary>
+        [Min(0.001f)] public float PlayerHitboxTolerance = 0.06f;
+
+        /// <summary>Outline simplification for the enemy hitbox polygons (world units at size 1; a boss's polygon is scaled with it).</summary>
+        [Min(0.001f)] public float EnemyHitboxTolerance = 0.05f;
+
+        /// <summary>Outline islands smaller than this area (square world units, at size 1) are dropped from a hitbox: loose specks of art are not solid.</summary>
+        [Min(0f)] public float HitboxMinPathArea = 0.02f;
 
         /// <summary>Base health bar fill colour.</summary>
         public Color BaseBarFillColor = new Color(0.35f, 0.65f, 1f);
@@ -570,17 +669,10 @@ namespace LastWave.Config
 
         /// <summary>
         /// Vertical offset of the sprite's cell bottom from the player centre, in world units. The sprite pivot is the
-        /// bottom of the cell and the soldier's feet sit 16 px above it, so -0.5 - 16/190 = -0.584 puts the feet on the
-        /// bottom edge of the hitbox (<see cref="PlayerColliderSize"/>, centred on the player).
+        /// bottom of the cell and the soldier's feet sit 16 px above it, so -0.5 - 16/190 = -0.584 puts the feet 0.5 below
+        /// the player centre (where the old 1-unit box ended). The polygon hitbox (story 015) follows the sprite, so it moves with this.
         /// </summary>
         public float PlayerSpriteOffsetY = -0.584f;
-
-        /// <summary>
-        /// Size of the player's hitbox (BoxCollider2D, centred on the player), in world units. Matches the soldier
-        /// sprite's body without the gun: about 0.75 wide and 1.0 tall at <see cref="PlayerSpritePixelsPerUnit"/> 190.
-        /// Used for enemy contact and for bodies pushing each other; re-run the setup after changing it.
-        /// </summary>
-        public Vector2 PlayerColliderSize = new Vector2(0.75f, 1f);
 
         /// <summary>Frames per second of the idle loop.</summary>
         [Min(0f)] public float PlayerIdleFps = 6f;

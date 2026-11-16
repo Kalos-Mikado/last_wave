@@ -20,6 +20,11 @@ namespace LastWave.Player
     /// (loops from <see cref="GameConfig.PlayerDownedLoopStartFrame"/>), 2 death, 3 getting up after a revive.
     /// Priority, highest first: dead, downed, getting up, hurt, repair/revive, shoot, walk, idle.
     /// </para>
+    /// <para>
+    /// Story 015: also owns the player's solid hitbox, a <see cref="PolygonCollider2D"/> on the root traced ONCE from
+    /// sheet A idle frame 1 (<see cref="SpriteHitbox"/>, cached for every player), never per animation frame, and mirrored
+    /// only when <see cref="PlayerMovement.FacingRight"/> changes. Same polygon on every machine.
+    /// </para>
     /// </summary>
     public sealed class PlayerAnimator : NetworkBehaviour
     {
@@ -49,6 +54,9 @@ namespace LastWave.Player
         private float _getUpStart, _getUpUntil;
         private float _movingUntil;
         private Vector2 _lastPosition;
+        private PolygonCollider2D _hitbox;  // story 015
+        private SpriteHitbox _hitboxShape;
+        private bool _hitboxFacingRight;
 
         /// <summary>The renderer that draws the soldier. <see cref="PlayerLife"/> tints it per player slot and when downed.</summary>
         public SpriteRenderer BodyRenderer => _renderer;
@@ -65,8 +73,18 @@ namespace LastWave.Player
 
             _a = SpriteSheet.Get(_sheetA, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
             _b = SpriteSheet.Get(_sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
-            // The sprite pivot is the foot; the body collider is centred on the root, so lower the visual to the feet.
+            // The sprite pivot is the foot; lower the visual so the feet sit half a unit below the root (the old box's bottom).
             _renderer.transform.localPosition = new Vector3(0f, _config.PlayerSpriteOffsetY, 0f);
+
+            // Story 015: the polygon hitbox, traced from idle frame 1 at the base visual offset (not the death-row nudge).
+            _hitbox = GetComponent<PolygonCollider2D>();
+            if (_hitbox != null)
+            {
+                _hitboxShape = SpriteHitbox.Get(_a.Frame(RowIdle, 0), new Vector2(0f, _config.PlayerSpriteOffsetY),
+                    _renderer.transform.localScale, _config.PlayerHitboxTolerance, _config.HitboxMinPathArea);
+                _hitboxFacingRight = _movement.FacingRight;
+                _hitboxShape.ApplyTo(_hitbox, _hitboxFacingRight);
+            }
 
             float now = Time.time;
             _clip = Clip.None;
@@ -122,6 +140,12 @@ namespace LastWave.Player
 
             TrackMovement(now);
             _renderer.flipX = !_movement.FacingRight;
+            if (_hitboxShape != null && _movement.FacingRight != _hitboxFacingRight)
+            {
+                // Story 015: mirror the hitbox only on a facing change.
+                _hitboxFacingRight = _movement.FacingRight;
+                _hitboxShape.ApplyTo(_hitbox, _hitboxFacingRight);
+            }
 
             Clip want = Choose(now);
             if (want != _clip)

@@ -4,6 +4,7 @@ using LastWave.Base;
 using LastWave.Config;
 using LastWave.Enemies;
 using LastWave.Flow;
+using LastWave.Map;
 using LastWave.Network;
 using LastWave.Player;
 using LastWave.UI;
@@ -42,7 +43,13 @@ namespace LastWave.EditorTools
         private const string EnemyNormalSheetPath = "Assets/Art/Enemies/Map1/basic.png";      // story 014
         private const string EnemyMiniBossSheetPath = "Assets/Art/Enemies/Map1/miniboss.png"; // story 014
         private const string EnemyBossSheetPath = "Assets/Art/Enemies/Map1/boss.png";         // story 014
-        private const float BaseVisualSize = 1.5f;
+        private static readonly string[] BaseTexturePaths =   // story 015: intact, damaged, destroyed
+        {
+            "Assets/Art/Base/base-intact.png",
+            "Assets/Art/Base/base-damaged.png",
+            "Assets/Art/Base/base-destroyed.png",
+        };
+        private const string Map1TexturePath = "Assets/Art/Maps/map1.png"; // story 015
         private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair
         private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: hurt, down, death, get up
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
@@ -61,6 +68,12 @@ namespace LastWave.EditorTools
 
             var config = LoadOrCreateConfig();
             var material = LoadOrCreateMaterial();
+            // Story 015: hitboxes are traced from these images at runtime, which needs their pixels on the CPU.
+            foreach (var path in new[] { PlayerSheetAPath, EnemyNormalSheetPath, EnemyMiniBossSheetPath, EnemyBossSheetPath })
+            {
+                EnsureReadable(path);
+            }
+            foreach (var path in BaseTexturePaths) EnsureReadable(path);
             var bulletPrefab = BuildBulletPrefab(material);
             var prefabList = RegisterNetworkPrefab(bulletPrefab);
             var enemyPrefab = BuildEnemyPrefab(material);
@@ -140,6 +153,16 @@ namespace LastWave.EditorTools
             return SaveNetworkPrefab(bullet, BulletPrefabPath);
         }
 
+        // Turns on Read/Write for an image so SpriteHitbox can trace its outline at runtime (story 015). Re-imports only when it changes.
+        private static void EnsureReadable(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) throw new System.InvalidOperationException($"Texture not found at {path}.");
+            if (importer.isReadable) return;
+            importer.isReadable = true;
+            importer.SaveAndReimport();
+        }
+
         private static Texture2D LoadTexture(string path)
         {
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
@@ -160,9 +183,9 @@ namespace LastWave.EditorTools
             // Smooth between 50 Hz physics steps: without it the host sees big enemies stutter at high frame rates.
             body.interpolation = RigidbodyInterpolation2D.Interpolate;
             body.gravityScale = 0f;
-            // Solid (not a trigger) so bullets register the hit. Hitbox matches the alien's body (story 014); Enemy.ApplyLook
-            // sets the size per kind at spawn, this is the normal enemy's. Wider than the ~0.3 a bullet moves per physics step.
-            enemy.AddComponent<BoxCollider2D>().size = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath).EnemyNormalLook.ColliderSize;
+            // Solid (not a trigger) so bullets register the hit. Story 015: a polygon traced from the kind's idle sprite by
+            // EnemyAnimator at spawn (empty here). About 1 unit wide, wider than the ~0.3 a bullet moves per physics step.
+            enemy.AddComponent<PolygonCollider2D>().pathCount = 0;
             enemy.AddComponent<NetworkObject>();
             var networkTransform = enemy.AddComponent<NetworkTransform>(); // default AuthorityMode = Server
             networkTransform.SyncPositionZ = false;
@@ -200,8 +223,8 @@ namespace LastWave.EditorTools
             var body = player.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f; // top-down
             body.freezeRotation = true; // the body never turns: the sprite is flipped instead (story 013)
-            // Hitbox matches the soldier sprite's body (story 013); size from config.
-            player.AddComponent<BoxCollider2D>().size = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath).PlayerColliderSize;
+            // Story 015: a polygon traced from the soldier's idle sprite by PlayerAnimator at spawn (empty here).
+            player.AddComponent<PolygonCollider2D>().pathCount = 0;
             player.AddComponent<NetworkObject>();
             var networkTransform = player.AddComponent<NetworkTransform>();
             networkTransform.AuthorityMode = NetworkTransform.AuthorityModes.Owner;
@@ -330,21 +353,59 @@ namespace LastWave.EditorTools
                 var baseMarker = new GameObject("Base");
                 var baseConfig = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
                 baseMarker.transform.position = baseConfig.BasePosition; // far left, vertically centred (story 009)
-                baseMarker.transform.localScale = new Vector3(BaseVisualSize, BaseVisualSize, 1f);
-                var baseRenderer = baseMarker.AddComponent<SpriteRenderer>(); // sprite and colour are set by WaveManager at start
+                // Solid, static hitbox shaped like the base image: players cannot walk onto it (story 015). BaseHealth traces
+                // one polygon per state at runtime and swaps it with the picture; empty here.
+                baseMarker.AddComponent<PolygonCollider2D>().pathCount = 0;
+
+                // Story 015: the image lives on a child so the Base object keeps scale 1 and position BasePosition;
+                // BaseHealth sets the child's height (ground line) and sprite from config.
+                var baseVisual = new GameObject("Visual");
+                baseVisual.transform.SetParent(baseMarker.transform, false);
+                var baseRenderer = baseVisual.AddComponent<SpriteRenderer>();
                 baseRenderer.sharedMaterial = material;
-                baseRenderer.sortingOrder = -1; // under players and enemies
+                baseRenderer.sortingOrder = -1; // under players and enemies, above the map (-100)
 
                 var baseHealth = baseMarker.AddComponent<BaseHealth>();
                 var baseSerialized = new SerializedObject(baseHealth);
                 baseSerialized.FindProperty("_renderer").objectReferenceValue = baseRenderer;
+                var baseTextures = baseSerialized.FindProperty("_textures");
+                baseTextures.arraySize = BaseTexturePaths.Length;
+                for (int i = 0; i < BaseTexturePaths.Length; i++)
+                {
+                    baseTextures.GetArrayElementAtIndex(i).objectReferenceValue = LoadTexture(BaseTexturePaths[i]);
+                }
                 baseSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+                // Story 015: the map picture behind everything (Game scene only; the Menu scene has no map).
+                var mapObject = new GameObject("Map");
+                mapObject.transform.position = Vector3.zero;
+                var mapRenderer = mapObject.AddComponent<SpriteRenderer>();
+                mapRenderer.sharedMaterial = material;
+                var mapBackground = mapObject.AddComponent<MapBackground>();
+                var mapSerialized = new SerializedObject(mapBackground);
+                mapSerialized.FindProperty("_texture").objectReferenceValue = LoadTexture(Map1TexturePath);
+                mapSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+                // Story 015: four static walls (no Rigidbody2D) on the rock bands and the view edges; MapWalls sizes and
+                // places them at runtime from the fitted map, so they follow a resized window.
+                var wallsObject = new GameObject("Walls");
+                wallsObject.transform.position = Vector3.zero;
+                var walls = wallsObject.AddComponent<MapWalls>();
+                var wallsSerialized = new SerializedObject(walls);
+                wallsSerialized.FindProperty("_map").objectReferenceValue = mapBackground;
+                foreach (var side in new[] { "Top", "Bottom", "Left", "Right" })
+                {
+                    var wall = new GameObject($"Wall{side}");
+                    wall.transform.SetParent(wallsObject.transform, false);
+                    wallsSerialized.FindProperty($"_{side.ToLowerInvariant()}").objectReferenceValue = wall.AddComponent<BoxCollider2D>();
+                }
+                wallsSerialized.ApplyModifiedPropertiesWithoutUndo();
 
                 var waves = new GameObject("WaveManager").AddComponent<WaveManager>();
                 var wavesSerialized = new SerializedObject(waves);
                 wavesSerialized.FindProperty("_enemyPrefab").objectReferenceValue = enemyPrefab;
                 wavesSerialized.FindProperty("_basePoint").objectReferenceValue = baseMarker.transform;
-                wavesSerialized.FindProperty("_baseMarker").objectReferenceValue = baseRenderer;
+                // _baseMarker is left empty since story 015: BaseHealth owns the base look; WaveManager must not paint it.
                 wavesSerialized.ApplyModifiedPropertiesWithoutUndo();
 
                 // Story 005: the "everyone is dead" lose condition (scene object, no NetworkObject).

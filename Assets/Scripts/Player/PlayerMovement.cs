@@ -15,7 +15,7 @@ namespace LastWave.Player
     /// everyone reads. The colour by client id is applied by <see cref="PlayerLife"/>.
     /// </summary>
     /// <example>
-    /// Player prefab = Rigidbody2D + BoxCollider2D + NetworkObject + NetworkTransform
+    /// Player prefab = Rigidbody2D + PolygonCollider2D (traced by PlayerAnimator, story 015) + NetworkObject + NetworkTransform
     /// (AuthorityMode = Owner) + PlayerMovement + PlayerHealth + PlayerShooting + a child Visual
     /// (SpriteRenderer) driven by PlayerAnimator, assigned as
     /// NetworkConfig.PlayerPrefab (built by <c>LastWaveSetup.Run</c>).

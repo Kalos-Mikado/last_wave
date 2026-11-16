@@ -1,5 +1,6 @@
 using System;
 using LastWave.Config;
+using LastWave.Player;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -36,10 +37,15 @@ namespace LastWave.Base
             return Mathf.CeilToInt(health);
         }
 
-        /// <summary>Colour for a health fraction (0 to 1): blends from the damaged colour at 0 to the healthy colour at 1.</summary>
-        public static Color ColorFor(float fraction, Color healthy, Color damaged)
+        /// <summary>
+        /// Which base image to show (story 015): 0 intact when health is above <paramref name="threshold"/> (a fraction
+        /// of max), 1 damaged from the threshold down to just above 0, 2 destroyed at 0 or less.
+        /// </summary>
+        public static int LookIndexFor(int shown, int max, float threshold)
         {
-            return Color.Lerp(damaged, healthy, Mathf.Clamp01(fraction));
+            if (shown <= 0) return 2;
+            float fraction = max > 0 ? (float)shown / max : 0f;
+            return fraction > threshold ? 0 : 1;
         }
     }
 
@@ -64,6 +70,13 @@ namespace LastWave.Base
 
         [SerializeField] private SpriteRenderer _renderer;
 
+        /// <summary>The base images in state order: intact, damaged, destroyed (set by LastWaveSetup).</summary>
+        [SerializeField] private Texture2D[] _textures = new Texture2D[3];
+
+        private Sprite[] _sprites;
+        private SpriteHitbox[] _hitboxes; // story 015: one traced polygon per state, same index as _sprites
+        private PolygonCollider2D _collider;     // static (no Rigidbody2D): players stop at the art, enemies stop at its edge
+        private int _shownLook = -1;
         private GameConfig _config;
         private NetworkManager _network;
         private float _health;      // server only: exact value
@@ -85,6 +98,9 @@ namespace LastWave.Base
         /// <summary>World position of the base centre.</summary>
         public Vector2 Position => transform.position;
 
+        /// <summary>The base's solid hitbox (a polygon traced from the current image, story 015), or null when the scene has none.</summary>
+        public Collider2D Collider => _collider != null ? _collider : GetComponent<PolygonCollider2D>();
+
         /// <summary>Raised on every machine when <see cref="Health"/> changes (previous, current).</summary>
         public event Action<int, int> OnHealthChanged;
 
@@ -100,6 +116,14 @@ namespace LastWave.Base
             _config = GameConfig.Instance;
             _health = _config.BaseMaxHealth;
             _shown = _config.BaseMaxHealth;
+            if (_renderer != null)
+            {
+                // The image is placed so its ground line sits at BasePosition + BaseGroundOffsetY (pivot is the outline bottom centre).
+                _renderer.transform.localPosition = new Vector3(0f, _config.BaseGroundOffsetY, 0f);
+            }
+            _collider = GetComponent<PolygonCollider2D>();
+            // Story 015: trace all three outlines now, so a state change mid-game never stalls on an outline trace.
+            for (int i = 0; i < 3; i++) GetHitbox(i);
             ApplyLook();
 
             _network = NetworkManager.Singleton;
@@ -221,12 +245,53 @@ namespace LastWave.Base
             if (destroyed && !wasDestroyed) OnBaseDestroyed?.Invoke();
         }
 
-        // The base's colour follows health: blue at full, darker red-tinted blue near 0 (guessed look).
+        // Story 015: the image follows the shown health (same on every machine): intact, damaged, destroyed.
         private void ApplyLook()
         {
             if (_renderer == null) return;
-            _renderer.sprite = Player.PlayerMovement.SquareSprite;
-            _renderer.color = BaseRules.ColorFor((float)_shown / _config.BaseMaxHealth, _config.BaseColor, _config.BaseDamagedColor);
+            int index = _destroyed ? 2 : BaseRules.LookIndexFor(_shown, _config.BaseMaxHealth, _config.BaseDamagedThreshold);
+            var sprite = GetSprite(index);
+            if (sprite != null) _renderer.sprite = sprite;
+
+            // Story 015: the solid hitbox follows the picture, swapped only when the state changes (same on every machine).
+            if (index == _shownLook) return;
+            _shownLook = index;
+            var hitbox = GetHitbox(index);
+            if (hitbox != null) hitbox.ApplyTo(_collider, facingRight: true);
+        }
+
+        // Traced once per state from the state's sprite, in the Base object's local space (the Visual child sits at the ground offset).
+        private SpriteHitbox GetHitbox(int index)
+        {
+            if (_collider == null || _renderer == null) return null;
+            if (_hitboxes == null) _hitboxes = new SpriteHitbox[3];
+            if (_hitboxes[index] != null) return _hitboxes[index];
+
+            var sprite = GetSprite(index);
+            if (sprite == null) return null;
+            var visual = _renderer.transform;
+            _hitboxes[index] = SpriteHitbox.Get(sprite, visual.localPosition, visual.localScale,
+                _config.BaseHitboxTolerance, _config.HitboxMinPathArea);
+            return _hitboxes[index];
+        }
+
+        // Sprites are made from the textures once, in code (no importer slicing). The pivot is the bottom centre of
+        // the outline of that image, so all three stand on the same ground line at the same pixels per unit.
+        private Sprite GetSprite(int index)
+        {
+            if (_sprites == null) _sprites = new Sprite[3];
+            if (_sprites[index] != null) return _sprites[index];
+
+            Texture2D texture = _textures[index];
+            if (texture == null) return null;
+            float ppu = _config.BaseOutlinePixelWidth / Mathf.Max(0.01f, _config.BaseWorldWidth);
+            float bottomRow = _config.BaseOutlineBottomPixels[index];   // counted from the image top
+            float centreColumn = _config.BaseOutlineCenterPixels[index];
+            var pivot = new Vector2(centreColumn / texture.width, (texture.height - bottomRow) / texture.height);
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), pivot, ppu, 0, SpriteMeshType.FullRect);
+            sprite.name = texture.name;
+            _sprites[index] = sprite;
+            return sprite;
         }
 
         private void OnGUI()
