@@ -29,8 +29,10 @@ namespace LastWave.Player
         /// <summary>Client id of the player who fired this bullet (set by <see cref="Launch"/>, server only).</summary>
         public ulong ShooterClientId { get; private set; }
 
-        /// <summary>Damage this bullet deals, from <see cref="GameConfig.BulletDamage"/>.</summary>
-        public int Damage => GameConfig.Instance.BulletDamage;
+        private int _damage = -1; // set by Launch; negative = use the config value
+
+        /// <summary>Damage this bullet deals: the shooter's upgraded damage given to <see cref="Launch"/>, else <see cref="GameConfig.BulletDamage"/>.</summary>
+        public int Damage => _damage >= 0 ? _damage : GameConfig.Instance.BulletDamage;
 
         /// <summary>Sets the look on every machine.</summary>
         public override void OnNetworkSpawn()
@@ -45,11 +47,13 @@ namespace LastWave.Player
         /// </summary>
         /// <param name="direction">Unit direction of flight.</param>
         /// <param name="shooterClientId">Owner client id of the player who fired.</param>
-        public void Launch(Vector2 direction, ulong shooterClientId)
+        /// <param name="damage">Damage this bullet deals; negative uses <see cref="GameConfig.BulletDamage"/>.</param>
+        public void Launch(Vector2 direction, ulong shooterClientId, int damage = -1)
         {
             if (!IsServer) return;
             var config = GameConfig.Instance;
             ShooterClientId = shooterClientId;
+            _damage = damage;
             GetComponent<Rigidbody2D>().linearVelocity = direction * config.BulletSpeed;
             _despawnTime = Time.time + config.BulletLifetime;
         }

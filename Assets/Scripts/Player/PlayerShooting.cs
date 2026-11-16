@@ -23,6 +23,7 @@ namespace LastWave.Player
         private PlayerMovement _movement;
         private PlayerRepair _repair;
         private PlayerLife _life;
+        private PlayerUpgrades _upgrades;
         private float _nextLocalShotTime;
         private float _nextServerShotTime;
 
@@ -32,6 +33,7 @@ namespace LastWave.Player
             _movement = GetComponent<PlayerMovement>();
             _repair = GetComponent<PlayerRepair>();
             _life = GetComponent<PlayerLife>();
+            _upgrades = GetComponent<PlayerUpgrades>();
         }
 
         private void Update()
@@ -49,7 +51,7 @@ namespace LastWave.Player
             if (UiPointerBlock.IsPointerOver(mouse.position.ReadValue())) return; // story 007: a click on an IMGUI control is not a shot
             if (Time.time < _nextLocalShotTime) return;
 
-            _nextLocalShotTime = Time.time + config.FireInterval;
+            _nextLocalShotTime = Time.time + CurrentFireInterval(config);
             ShootRpc(_movement.AimDirection);
         }
 
@@ -70,8 +72,9 @@ namespace LastWave.Player
 
             var config = GameConfig.Instance;
             float now = Time.time;
-            if (now < _nextServerShotTime - config.FireInterval * config.FireIntervalTolerance) return;
-            _nextServerShotTime = Mathf.Max(_nextServerShotTime, now) + config.FireInterval;
+            float interval = CurrentFireInterval(config); // story 012: same upgraded interval as the client's local one
+            if (now < _nextServerShotTime - interval * config.FireIntervalTolerance) return;
+            _nextServerShotTime = Mathf.Max(_nextServerShotTime, now) + interval;
 
             Vector2 aim = direction.normalized;
             Vector2 origin = (Vector2)transform.position + aim * config.BulletSpawnOffset;
@@ -79,7 +82,14 @@ namespace LastWave.Player
                 _bulletPrefab.gameObject, NetworkManager, destroyWithScene: true,
                 position: origin,
                 rotation: Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg));
-            bulletObject.GetComponent<Bullet>().Launch(aim, OwnerClientId);
+            int damage = _upgrades != null ? _upgrades.BulletDamage : config.BulletDamage; // story 012: the shooter's upgraded damage, decided on the server
+            bulletObject.GetComponent<Bullet>().Launch(aim, OwnerClientId, damage);
+        }
+
+        // Seconds between shots: the config interval, divided by this player's fire rate upgrades (story 012).
+        private float CurrentFireInterval(GameConfig config)
+        {
+            return _upgrades != null ? _upgrades.FireInterval : config.FireInterval;
         }
     }
 }

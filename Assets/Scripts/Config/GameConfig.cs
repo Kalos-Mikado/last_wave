@@ -81,6 +81,40 @@ namespace LastWave.Config
         public SpawnEdges Edge = SpawnEdges.Top;
     }
 
+    /// <summary>What a wave-rest upgrade card improves (story 012). Values are packed one byte each into a network variable: keep fewer than 8 kinds.</summary>
+    public enum UpgradeKind : byte
+    {
+        /// <summary>Bullet damage multiplier.</summary>
+        Damage = 0,
+        /// <summary>Fire rate: the interval between shots is divided by the multiplier.</summary>
+        FireRate = 1,
+        /// <summary>Walking speed multiplier.</summary>
+        MoveSpeed = 2,
+        /// <summary>Flat extra max health.</summary>
+        MaxHealth = 3,
+        /// <summary>Base repair rate multiplier.</summary>
+        RepairSpeed = 4,
+        /// <summary>Revive speed multiplier (the player doing the reviving).</summary>
+        ReviveSpeed = 5,
+    }
+
+    /// <summary>One upgrade card in <see cref="GameConfig.Upgrades"/>. Each level adds <see cref="Value"/> (levels stack linearly).</summary>
+    [System.Serializable]
+    public sealed class UpgradeDefinition
+    {
+        /// <summary>What it improves.</summary>
+        public UpgradeKind Kind = UpgradeKind.Damage;
+
+        /// <summary>Name on the card, e.g. "Damage". Also used (lower case) in the value line, e.g. "+20% damage".</summary>
+        public string DisplayName = "Damage";
+
+        /// <summary>Gain per level: a fraction (0.2 = +20%) when <see cref="IsPercent"/>, otherwise a flat amount (25 = +25).</summary>
+        public float Value = 0.2f;
+
+        /// <summary>True when <see cref="Value"/> is a fraction shown as a percent; false for a flat amount.</summary>
+        public bool IsPercent = true;
+    }
+
     /// <summary>
     /// Every tunable value for the room and the placeholder player, in one asset.
     /// The asset lives at <c>Assets/Resources/GameConfig.asset</c> and is created by
@@ -183,8 +217,8 @@ namespace LastWave.Config
         /// <summary>Seconds from the game scene starting to wave 1 (brief: about 20).</summary>
         [Min(0f)] public float FirstWaveDelaySeconds = 20f;
 
-        /// <summary>Seconds of rest after a wave is cleared, before the next one (guessed: 10).</summary>
-        [Min(0f)] public float WaveRestSeconds = 10f;
+        /// <summary>Seconds of rest after a wave is cleared, before the next one (story 012 raised it from 10 to 15 so the upgrade cards can be read; own call).</summary>
+        [Min(0f)] public float WaveRestSeconds = 15f;
 
         /// <summary>Half width and half height of the play area, in world units; enemies spawn on its edges.</summary>
         public Vector2 MapHalfExtents = new Vector2(10f, 5.5f);
@@ -436,6 +470,66 @@ namespace LastWave.Config
 
         /// <summary>Word before the player count on the room strip.</summary>
         public string RoomStripPlayersLabel = "Players";
+
+        // ---- Story 012: upgrade cards between waves ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.
+        // Every number is a first guess for the designer to tune.
+
+        /// <summary>The upgrade set. Each rest, every player is dealt <see cref="UpgradeChoicesPerRest"/> distinct kinds from it (a kind listed twice counts once).</summary>
+        public UpgradeDefinition[] Upgrades =
+        {
+            new UpgradeDefinition { Kind = UpgradeKind.Damage,      DisplayName = "Damage",       Value = 0.20f, IsPercent = true },
+            new UpgradeDefinition { Kind = UpgradeKind.FireRate,    DisplayName = "Fire rate",    Value = 0.15f, IsPercent = true },
+            new UpgradeDefinition { Kind = UpgradeKind.MoveSpeed,   DisplayName = "Move speed",   Value = 0.10f, IsPercent = true },
+            new UpgradeDefinition { Kind = UpgradeKind.MaxHealth,   DisplayName = "Max health",   Value = 25f,   IsPercent = false },
+            new UpgradeDefinition { Kind = UpgradeKind.RepairSpeed, DisplayName = "Repair speed", Value = 0.30f, IsPercent = true },
+            new UpgradeDefinition { Kind = UpgradeKind.ReviveSpeed, DisplayName = "Revive speed", Value = 0.30f, IsPercent = true },
+        };
+
+        /// <summary>Cards each player is dealt per rest (brief: 3; at most 8).</summary>
+        [Range(1, 8)] public int UpgradeChoicesPerRest = 3;
+
+        /// <summary>Hint above the cards.</summary>
+        public string UpgradeHintText = "Pick an upgrade (1/2/3)";
+
+        /// <summary>Size of one card in screen pixels (width, height).</summary>
+        public Vector2 UpgradeCardSize = new Vector2(220f, 120f);
+
+        /// <summary>Gap between two cards, in pixels.</summary>
+        [Min(0f)] public float UpgradeCardGap = 16f;
+
+        /// <summary>Distance from the bottom of the screen to the bottom of the cards, in pixels.</summary>
+        [Min(0f)] public float UpgradeCardBottomMargin = 60f;
+
+        /// <summary>Thickness of the card border, in pixels.</summary>
+        [Min(0f)] public float UpgradeCardBorderThickness = 3f;
+
+        /// <summary>Font size of the card name, in pixels.</summary>
+        [Min(8)] public int UpgradeNameFontSize = 26;
+
+        /// <summary>Font size of the card value line, in pixels.</summary>
+        [Min(8)] public int UpgradeValueFontSize = 20;
+
+        /// <summary>Font size of the key number in a card corner, in pixels.</summary>
+        [Min(8)] public int UpgradeKeyFontSize = 18;
+
+        /// <summary>Font size of the hint, in pixels.</summary>
+        [Min(8)] public int UpgradeHintFontSize = 22;
+
+        /// <summary>Card background colour.</summary>
+        public Color UpgradeCardBackColor = new Color(0.10f, 0.12f, 0.18f, 0.92f);
+
+        /// <summary>Card background colour while the mouse is over it.</summary>
+        public Color UpgradeCardHoverColor = new Color(0.20f, 0.26f, 0.38f, 0.96f);
+
+        /// <summary>Card border colour.</summary>
+        public Color UpgradeCardBorderColor = new Color(0.95f, 0.85f, 0.35f, 1f);
+
+        /// <summary>Colour of the card name and the hint.</summary>
+        public Color UpgradeNameColor = Color.white;
+
+        /// <summary>Colour of the card value line and key number.</summary>
+        public Color UpgradeValueColor = new Color(0.55f, 1f, 0.6f, 1f);
 
         /// <summary>
         /// DEBUG: seconds after the Game scene starts before <c>--force-outcome</c> takes effect, so every

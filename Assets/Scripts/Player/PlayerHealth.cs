@@ -65,6 +65,7 @@ namespace LastWave.Player
 
         private GameConfig _config;
         private PlayerLife _life;
+        private PlayerUpgrades _upgrades;
         private WaveManager _waves;       // server: the one whose OnWaveCleared we listen to (story 011)
         private float _sinceDamage;       // server: seconds since this player last took damage
         private float _regenAccumulator;  // server: fractional regen health carried between frames
@@ -72,8 +73,15 @@ namespace LastWave.Player
         /// <summary>Current health, 0 up to <see cref="MaxHealth"/>. Same value on every machine.</summary>
         public int Health => _health.Value;
 
-        /// <summary>Health a player starts with (from <see cref="GameConfig.MaxPlayerHealth"/>).</summary>
-        public int MaxHealth => GameConfig.Instance.MaxPlayerHealth;
+        /// <summary>Max health: <see cref="GameConfig.MaxPlayerHealth"/> plus this player's max health upgrades (story 012).</summary>
+        public int MaxHealth
+        {
+            get
+            {
+                if (_upgrades == null) _upgrades = GetComponent<PlayerUpgrades>();
+                return _upgrades != null ? _upgrades.MaxHealth : GameConfig.Instance.MaxPlayerHealth;
+            }
+        }
 
         /// <summary>Raised on every machine when <see cref="Health"/> changes (previous, current).</summary>
         public event System.Action<int, int> OnHealthChanged;
@@ -84,7 +92,7 @@ namespace LastWave.Player
             _config = GameConfig.Instance;
             _life = GetComponent<PlayerLife>();
             _health.OnValueChanged += HandleHealthChanged;
-            if (IsServer) _health.Value = _config.MaxPlayerHealth;
+            if (IsServer) _health.Value = MaxHealth;
             ResetRegen();
         }
 
@@ -130,7 +138,7 @@ namespace LastWave.Player
                 Debug.LogWarning("PlayerHealth.ServerSetHealth is server-only; call ignored.");
                 return;
             }
-            _health.Value = Mathf.Clamp(value, 0, _config.MaxPlayerHealth);
+            _health.Value = Mathf.Clamp(value, 0, MaxHealth);
         }
 
         private void HandleHealthChanged(int previous, int current)
@@ -166,7 +174,7 @@ namespace LastWave.Player
 
             int add = PlayerHealthRules.Advance(Time.deltaTime, _config.HealthRegenDelaySeconds,
                 _config.HealthRegenPerSecond, ref _sinceDamage, ref _regenAccumulator,
-                _health.Value, _config.MaxPlayerHealth);
+                _health.Value, MaxHealth);
             if (add > 0) ServerSetHealth(_health.Value + add);
         }
 
@@ -176,7 +184,7 @@ namespace LastWave.Player
             if (!IsServer || !IsSpawned || !_config.FullHealOnWaveCleared) return;
             if (!IsStanding || GameOutcome.IsOver) return;
             if (wave >= _config.Waves.Length) return; // last wave: no rest follows, the game is ending
-            ServerSetHealth(_config.MaxPlayerHealth);
+            ServerSetHealth(MaxHealth);
             ResetRegen();
         }
 
@@ -213,7 +221,7 @@ namespace LastWave.Player
             // A downed player's bar shows the time left before death (distinct colour), not health.
             float fraction = downed
                 ? Mathf.Clamp01(_life.DownedRemaining / _config.DownedTimeoutSeconds)
-                : Mathf.Clamp01((float)_health.Value / _config.MaxPlayerHealth);
+                : Mathf.Clamp01((float)_health.Value / MaxHealth);
 
             var previousColor = GUI.color;
             GUI.color = _config.HealthBarBackColor;

@@ -26,6 +26,7 @@ namespace LastWave.Player
     {
         private BaseHealth _base;
         private PlayerLife _life;
+        private PlayerUpgrades _upgrades;
         private bool _requested; // server: what the owner last reported
 
         /// <summary>Owner only: true while E is held and there is a downed friend to revive or a damaged base to repair in range. Blocks moving and shooting.</summary>
@@ -42,6 +43,7 @@ namespace LastWave.Player
         public override void OnNetworkSpawn()
         {
             _life = GetComponent<PlayerLife>();
+            _upgrades = GetComponent<PlayerUpgrades>();
             _requested = false;
             IsInteractingLocal = false;
         }
@@ -77,11 +79,12 @@ namespace LastWave.Player
                 var target = FindReviveTarget();
                 if (target != null)
                 {
-                    target.ServerHoldRevive(Time.deltaTime); // revive wins over repair
+                    // Revive wins over repair. Story 012: the reviver's revive speed shortens the hold (time counts faster).
+                    target.ServerHoldRevive(Time.deltaTime * (_upgrades != null ? _upgrades.ReviveSpeedMultiplier : 1f));
                 }
                 else if (_base != null && InRange())
                 {
-                    _base.Repair(GameConfig.Instance.RepairPerSecond, Time.deltaTime);
+                    _base.Repair(_upgrades != null ? _upgrades.RepairPerSecond : GameConfig.Instance.RepairPerSecond, Time.deltaTime);
                 }
             }
         }

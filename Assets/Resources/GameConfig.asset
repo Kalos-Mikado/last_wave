@@ -38,7 +38,7 @@ MonoBehaviour:
   HealthBarBackColor: {r: 0, g: 0, b: 0, a: 0.7}
   DebugDamageKey: 25
   FirstWaveDelaySeconds: 20
-  WaveRestSeconds: 10
+  WaveRestSeconds: 15
   MapHalfExtents: {x: 10, y: 5.5}
   EnemyStopDistance: 1.2
   EnemySightRange: 4
@@ -166,6 +166,46 @@ MonoBehaviour:
   RoomStripFontSize: 18
   RoomStripCodeLabel: Room
   RoomStripPlayersLabel: Players
+  Upgrades:
+  - Kind: 0
+    DisplayName: Damage
+    Value: 0.2
+    IsPercent: 1
+  - Kind: 1
+    DisplayName: Fire rate
+    Value: 0.15
+    IsPercent: 1
+  - Kind: 2
+    DisplayName: Move speed
+    Value: 0.1
+    IsPercent: 1
+  - Kind: 3
+    DisplayName: Max health
+    Value: 25
+    IsPercent: 0
+  - Kind: 4
+    DisplayName: Repair speed
+    Value: 0.3
+    IsPercent: 1
+  - Kind: 5
+    DisplayName: Revive speed
+    Value: 0.3
+    IsPercent: 1
+  UpgradeChoicesPerRest: 3
+  UpgradeHintText: Pick an upgrade (1/2/3)
+  UpgradeCardSize: {x: 220, y: 120}
+  UpgradeCardGap: 16
+  UpgradeCardBottomMargin: 60
+  UpgradeCardBorderThickness: 3
+  UpgradeNameFontSize: 26
+  UpgradeValueFontSize: 20
+  UpgradeKeyFontSize: 18
+  UpgradeHintFontSize: 22
+  UpgradeCardBackColor: {r: 0.1, g: 0.12, b: 0.18, a: 0.92}
+  UpgradeCardHoverColor: {r: 0.2, g: 0.26, b: 0.38, a: 0.96}
+  UpgradeCardBorderColor: {r: 0.95, g: 0.85, b: 0.35, a: 1}
+  UpgradeNameColor: {r: 1, g: 1, b: 1, a: 1}
+  UpgradeValueColor: {r: 0.55, g: 1, b: 0.6, a: 1}
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

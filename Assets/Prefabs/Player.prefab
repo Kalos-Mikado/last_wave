@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 2120094245761053700}
   - component: {fileID: 690944118185965913}
   - component: {fileID: 8070723452225600736}
+  - component: {fileID: 747440744899939704}
   - component: {fileID: 1895758881628646795}
   m_Layer: 0
   m_Name: Player
@@ -299,6 +300,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d42675cc76282bb4d8c81ea4ae813482, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LastWave.Player.PlayerRepair
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &747440744899939704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6556251039853514928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9611276cc393f4ca0c95f1f7b88644, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LastWave.Player.PlayerUpgrades
   ShowTopMostFoldoutHeaderGroup: 1
 --- !u!114 &1895758881628646795
 MonoBehaviour:

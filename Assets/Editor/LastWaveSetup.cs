@@ -186,6 +186,7 @@ namespace LastWave.EditorTools
             player.AddComponent<PlayerHealth>();
             player.AddComponent<PlayerLife>(); // story 005: downed, revive, death, respawn
             player.AddComponent<PlayerRepair>();
+            player.AddComponent<PlayerUpgrades>(); // story 012: upgrade levels and the card offer
 
             var shooting = player.AddComponent<PlayerShooting>();
             var shootingSerialized = new SerializedObject(shooting);
@@ -309,6 +310,9 @@ namespace LastWave.EditorTools
                 // Story 007: the one place that decides win or lose, and the screens it shows (scene objects, no NetworkObject).
                 new GameObject("GameOutcome").AddComponent<GameOutcome>();
                 new GameObject("EndScreen").AddComponent<EndScreen>();
+
+                // Story 012: the upgrade cards shown during a wave rest (scene object, no NetworkObject).
+                new GameObject("UpgradeCards").AddComponent<UpgradeCards>();
             }
 
             var path = $"{ScenesFolder}/{sceneName}.unity";

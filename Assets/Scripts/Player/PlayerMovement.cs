@@ -28,6 +28,7 @@ namespace LastWave.Player
         private Rigidbody2D _body;
         private PlayerRepair _repair;
         private PlayerLife _life;
+        private PlayerUpgrades _upgrades;
 
         /// <summary>1 x 1 world unit white square sprite shared by players, aim markers and bullets.</summary>
         internal static Sprite SquareSprite
@@ -99,7 +100,9 @@ namespace LastWave.Player
             }
             // Repairing the base (story 004) or reviving a friend (story 005) means standing still.
             if (_repair != null && _repair.IsInteractingLocal) direction = Vector2.zero;
-            _body.linearVelocity = direction.normalized * _config.MoveSpeed;
+            if (_upgrades == null) _upgrades = GetComponent<PlayerUpgrades>();
+            float speed = _upgrades != null ? _upgrades.MoveSpeed : _config.MoveSpeed; // story 012
+            _body.linearVelocity = direction.normalized * speed;
         }
 
         private void UpdateAim()

@@ -271,7 +271,7 @@ namespace LastWave.Player
         private void Revive()
         {
             // Health first, so nobody ever sees a standing player at 0 health.
-            _health.ServerSetHealth(PlayerLifeRules.ReviveHealth(_config.MaxPlayerHealth, _config.ReviveHealthFraction));
+            _health.ServerSetHealth(PlayerLifeRules.ReviveHealth(_health.MaxHealth, _config.ReviveHealthFraction));
             if (!SetState(PlayerState.Standing)) return;
             _downedRemaining.Value = 0f;
             ResetRevive();
@@ -292,7 +292,7 @@ namespace LastWave.Player
             if (GameOutcome.IsOver) return; // story 007: nobody respawns after the game ended
             if (wave >= _config.Waves.Length) return; // all waves cleared: nothing respawns
 
-            _health.ServerSetHealth(PlayerLifeRules.RespawnHealth(_config.MaxPlayerHealth, _config.RespawnHealthFraction));
+            _health.ServerSetHealth(PlayerLifeRules.RespawnHealth(_health.MaxHealth, _config.RespawnHealthFraction));
             if (!SetState(PlayerState.Standing)) return;
             RespawnRpc(RespawnPosition());
         }
@@ -306,8 +306,12 @@ namespace LastWave.Player
         {
             if (!IsServer || !IsSpawned) return;
 
+            // Upgrades first (story 012), so the max health used below is back to the base value.
+            var upgrades = GetComponent<PlayerUpgrades>();
+            if (upgrades != null) upgrades.ServerResetUpgrades();
+
             // Health first, so nobody ever sees a standing player at 0 health (same order as Revive).
-            _health.ServerSetHealth(_config.MaxPlayerHealth);
+            _health.ServerSetHealth(_health.MaxHealth);
             if (State != PlayerState.Standing) SetState(PlayerState.Standing); // Downed and Dead may stand up
             _downedRemaining.Value = 0f;
             ResetRevive();
