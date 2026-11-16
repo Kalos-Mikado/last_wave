@@ -21,6 +21,9 @@ MonoBehaviour:
   - {r: 0.7, g: 0.4, b: 1, a: 1}
   - {r: 1, g: 0.55, b: 0.15, a: 1}
   MaxPlayerHealth: 100
+  HealthRegenDelaySeconds: 4
+  HealthRegenPerSecond: 5
+  FullHealOnWaveCleared: 1
   FireInterval: 0.25
   FireIntervalTolerance: 0.5
   BulletSpeed: 14

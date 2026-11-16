@@ -123,6 +123,15 @@ namespace LastWave.Config
         /// <summary>Health every player starts with (server writes it; whole points).</summary>
         [Min(1)] public int MaxPlayerHealth = 100;
 
+        /// <summary>Seconds a standing player must go without taking damage before health starts to regenerate (story 011, guessed: 4).</summary>
+        [Min(0f)] public float HealthRegenDelaySeconds = 4f;
+
+        /// <summary>Health regenerated per second once the wait is over, up to max health (story 011, guessed: 5; fractions are kept, so it need not be a whole number).</summary>
+        [Min(0f)] public float HealthRegenPerSecond = 5f;
+
+        /// <summary>When true, every standing player is healed to full the moment a wave rest starts (story 011, guessed: true).</summary>
+        public bool FullHealOnWaveCleared = true;
+
         /// <summary>Seconds between two shots from one player (server enforces it).</summary>
         [Min(0.01f)] public float FireInterval = 0.25f;
 
