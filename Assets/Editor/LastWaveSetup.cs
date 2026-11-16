@@ -51,8 +51,11 @@ namespace LastWave.EditorTools
             "Assets/Art/Base/Map1/base-destroyed.png",
         };
         private const string Map1TexturePath = "Assets/Art/Maps/map1.png"; // story 015
-        private const string PlayerSheetAPath = "Assets/Art/Player/player-a.png"; // story 013: idle, walk, shoot, repair
-        private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: hurt, down, death, get up
+        private const string PlayerBodySheetPath = "Assets/Art/Player/player-body.png"; // story 019: idle, walk, hurt (no arms), repair
+        private const string PlayerSheetBPath = "Assets/Art/Player/player-b.png"; // story 013: (unused), down, death, get up
+        private const string PlayerArmTexturePath = "Assets/Art/Player/player-arms-rifle.png"; // story 019: arm + rifle, turns at the shoulder
+        private const string MuzzleFlashTexturePath = "Assets/Art/Player/muzzle-flash.png";    // story 019: 2 x 2 flash frames
+        private const string GunPreviewFolder = "../production/qa/evidence/story-019-separate-gun"; // story 019: offline composite check
         private const string MenuBackgroundTexturePath = "Assets/Art/UI/menu-background.png"; // story 016
         private const string MenuLogoTexturePath = "Assets/Art/UI/logo-name.png";             // story 016
         private const string ButtonTexturePath = "Assets/Art/UI/button.png";                  // story 016
@@ -88,7 +91,8 @@ namespace LastWave.EditorTools
             var config = LoadOrCreateConfig();
             var material = LoadOrCreateMaterial();
             // Story 015: hitboxes are traced from these images at runtime, which needs their pixels on the CPU.
-            foreach (var path in new[] { PlayerSheetAPath, EnemyNormalSheetPath, EnemyMiniBossSheetPath, EnemyBossSheetPath })
+            // Story 019: the arm's tight sprite mesh is built from its alpha at runtime, which needs Read/Write too.
+            foreach (var path in new[] { PlayerBodySheetPath, PlayerArmTexturePath, EnemyNormalSheetPath, EnemyMiniBossSheetPath, EnemyBossSheetPath })
             {
                 EnsureReadable(path);
             }
@@ -213,6 +217,117 @@ namespace LastWave.EditorTools
             return SaveNetworkPrefab(bullet, BulletPrefabPath);
         }
 
+        /// <summary>
+        /// Story 019 offline check: logs the arm piece's opaque bounds, shoulder-cap centre and muzzle tip (image pixels,
+        /// top-left origin), then draws body idle frame 1 (and walk frame 1) with the arm placed by the same math as the game
+        /// (<see cref="PlayerShooting.ShoulderLocal"/>, <see cref="PlayerShooting.MuzzleLocal"/>) at several aims, on the
+        /// CPU, and writes one PNG to <c>production/qa/evidence/story-019-separate-gun/</c>. A red dot marks the muzzle.
+        /// </summary>
+        [MenuItem("Last Wave/Story 019 Gun Preview")]
+        public static void PreviewGun()
+        {
+            foreach (var path in new[] { PlayerBodySheetPath, PlayerArmTexturePath, MuzzleFlashTexturePath }) EnsureReadable(path);
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
+            var body = LoadTexture(PlayerBodySheetPath);
+            var armTex = LoadTexture(PlayerArmTexturePath);
+            var flashTex = LoadTexture(MuzzleFlashTexturePath);
+            Color32[] bodyPx = body.GetPixels32(), armPx = armTex.GetPixels32(), flashPx = flashTex.GetPixels32();
+            int aw = armTex.width, ah = armTex.height;
+
+            // Measure the arm: opaque bounds, the cap (leftmost 30 columns) centre, the rightmost column's middle.
+            int minX = aw, maxX = -1, minY = ah, maxY = -1;
+            for (int y = 0; y < ah; y++)
+                for (int x = 0; x < aw; x++)
+                    if (armPx[y * aw + x].a > 128) { minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x); minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y); }
+            double capX = 0, capY = 0; int capN = 0; double tipY = 0; int tipN = 0;
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= Mathf.Min(maxX, minX + 30); x++)
+                    if (armPx[y * aw + x].a > 128) { capX += x; capY += y; capN++; }
+                for (int x = Mathf.Max(minX, maxX - 2); x <= maxX; x++)
+                    if (armPx[y * aw + x].a > 128) { tipY += y; tipN++; }
+            }
+            // Texture rows count from the bottom; report from the top like the config.
+            Debug.Log($"GunPreview: arm {aw}x{ah} opaque x {minX}-{maxX}, y(top) {ah - 1 - maxY}-{ah - 1 - minY}; " +
+                      $"cap centre ({capX / capN:F1}, {ah - 1 - capY / capN:F1}); muzzle tip ({maxX}, {ah - 1 - tipY / tipN:F1}).");
+
+            int fw = flashTex.width;
+            for (int fc = 0; fc < 4; fc++)
+            {
+                int cx0 = (fc % 2) * fw / 2, cyTop = (fc / 2) * flashTex.height / 2, n = 0; int fx0 = fw, fx1 = -1;
+                for (int y = flashTex.height - cyTop - flashTex.height / 2; y < flashTex.height - cyTop; y++)
+                    for (int x = cx0; x < cx0 + fw / 2; x++)
+                        if (flashPx[y * fw + x].a > 128) { n++; fx0 = Mathf.Min(fx0, x - cx0); fx1 = Mathf.Max(fx1, x - cx0); }
+                Debug.Log($"GunPreview: flash cell {fc} opaque px {n}, x {fx0}-{fx1}");
+            }
+
+            // One tile per pose: (body row, aim degrees). 1 output pixel = 1 body pixel.
+            var poses = new (int row, float aim, string label)[]
+            {
+                (0, 0f, "idle straight"), (0, 45f, "idle up45"), (0, 90f, "idle up (clamped)"), (0, -45f, "idle down45"),
+                (0, 180f, "idle left"), (0, 150f, "idle up-left"), (1, 0f, "walk straight"), (2, 20f, "hurt"),
+            };
+            int cell = config.PlayerSheetCellPixels, tile = 320;
+            float bodyPpu = config.PlayerSpritePixelsPerUnit, armScale = config.PlayerArmPixelsPerUnit / bodyPpu;
+            var outTex = new Texture2D(tile * poses.Length, tile, TextureFormat.RGBA32, false);
+            var outPx = new Color32[outTex.width * outTex.height];
+            for (int i = 0; i < outPx.Length; i++) outPx[i] = new Color32(70, 90, 70, 255);
+            Vector2 shoulderArm = config.PlayerArmShoulderPixel;
+            for (int p = 0; p < poses.Length; p++)
+            {
+                var pose = poses[p];
+                bool facingRight = Mathf.Cos(pose.aim * Mathf.Deg2Rad) >= 0f;
+                // Root at tile centre; world -> tile pixels: x * bodyPpu, y * bodyPpu.
+                float ox = p * tile + tile * 0.5f, oy = tile * 0.5f;
+                for (int y = 0; y < tile; y++)
+                {
+                    for (int x = 0; x < tile; x++)
+                    {
+                        float wx = (p * tile + x + 0.5f - ox) / bodyPpu, wy = (y + 0.5f - oy) / bodyPpu;
+                        // Body: cell pivot bottom centre at (0, PlayerSpriteOffsetY), mirrored when facing left.
+                        float bx = (facingRight ? wx : -wx) * bodyPpu + cell * 0.5f;
+                        float by = (wy - config.PlayerSpriteOffsetY) * bodyPpu; // from the cell bottom
+                        Color32 c = outPx[y * outTex.width + p * tile + x];
+                        if (bx >= 0 && bx < cell && by >= 0 && by < cell)
+                        {
+                            int sx = (int)bx, sy = body.height - (pose.row + 1) * cell + (int)by;
+                            c = Over(c, bodyPx[sy * body.width + sx]);
+                        }
+                        // Arm: inverse of translate(shoulder) * rotate(rotZ) * scale(+-1, 1).
+                        Vector2 sh = PlayerShooting.ShoulderLocal(config, facingRight, pose.row);
+                        float rz = PlayerShooting.ArmRotationZ(PlayerShooting.ArmLocalAngle(pose.aim, facingRight, config.PlayerArmClampDegrees), facingRight) * Mathf.Deg2Rad;
+                        float dx = wx - sh.x, dy = wy - sh.y;
+                        float lx = dx * Mathf.Cos(-rz) - dy * Mathf.Sin(-rz), ly = dx * Mathf.Sin(-rz) + dy * Mathf.Cos(-rz);
+                        if (!facingRight) lx = -lx;
+                        int ax = (int)(shoulderArm.x + lx * config.PlayerArmPixelsPerUnit);
+                        int ayTop = (int)(shoulderArm.y - ly * config.PlayerArmPixelsPerUnit);
+                        if (ax >= 0 && ax < aw && ayTop >= 0 && ayTop < ah) c = Over(c, armPx[(ah - 1 - ayTop) * aw + ax]);
+                        outPx[y * outTex.width + p * tile + x] = c;
+                    }
+                }
+                bool fr = Mathf.Cos(pose.aim * Mathf.Deg2Rad) >= 0f;
+                Vector2 muzzle = PlayerShooting.MuzzleLocal(config, pose.aim, fr, pose.row);
+                int mx = (int)(ox + muzzle.x * bodyPpu), my = (int)(oy + muzzle.y * bodyPpu);
+                for (int y = my - 2; y <= my + 2; y++)
+                    for (int x = mx - 2; x <= mx + 2; x++)
+                        if (x >= p * tile && x < (p + 1) * tile && y >= 0 && y < tile) outPx[y * outTex.width + x] = new Color32(255, 0, 0, 255);
+                Debug.Log($"GunPreview: tile {p} = {pose.label} (aim {pose.aim}, facing {(fr ? "right" : "left")})");
+            }
+            outTex.SetPixels32(outPx);
+            Directory.CreateDirectory(GunPreviewFolder);
+            string file = Path.Combine(GunPreviewFolder, "offline-composite.png");
+            File.WriteAllBytes(file, outTex.EncodeToPNG());
+            Object.DestroyImmediate(outTex);
+            Debug.Log($"GunPreview: wrote {Path.GetFullPath(file)} (armScale {armScale:F2} body px per arm px).");
+        }
+
+        private static Color32 Over(Color32 under, Color32 over)
+        {
+            float a = over.a / 255f;
+            return new Color32((byte)(under.r + (over.r - under.r) * a), (byte)(under.g + (over.g - under.g) * a),
+                (byte)(under.b + (over.b - under.b) * a), 255);
+        }
+
         // Turns on Read/Write for an image so SpriteHitbox can trace its outline at runtime (story 015). Re-imports only when it changes.
         private static void EnsureReadable(string path)
         {
@@ -275,9 +390,10 @@ namespace LastWave.EditorTools
 
         private static GameObject BuildPlayerPrefab(Material material, GameObject bulletPrefab)
         {
-            var sheetA = AssetDatabase.LoadAssetAtPath<Texture2D>(PlayerSheetAPath);
-            var sheetB = AssetDatabase.LoadAssetAtPath<Texture2D>(PlayerSheetBPath);
-            if (sheetA == null || sheetB == null) throw new System.InvalidOperationException($"Player sheets not found at {PlayerSheetAPath} / {PlayerSheetBPath}.");
+            var bodySheet = LoadTexture(PlayerBodySheetPath);
+            var sheetB = LoadTexture(PlayerSheetBPath);
+            var armTexture = LoadTexture(PlayerArmTexturePath);
+            var flashTexture = LoadTexture(MuzzleFlashTexturePath);
 
             var player = new GameObject("Player");
             var body = player.AddComponent<Rigidbody2D>();
@@ -300,11 +416,28 @@ namespace LastWave.EditorTools
             var visualRenderer = visual.AddComponent<SpriteRenderer>();
             visualRenderer.sharedMaterial = material;
 
+            // Story 019: the arm + rifle turns at the shoulder (placed, rotated and shown by PlayerAnimator); the muzzle
+            // flash is its child, so it turns with the rifle.
+            var arm = new GameObject("Arm");
+            arm.transform.SetParent(player.transform, false);
+            var armRenderer = arm.AddComponent<SpriteRenderer>();
+            armRenderer.sharedMaterial = material;
+            armRenderer.enabled = false;
+            var flash = new GameObject("MuzzleFlash");
+            flash.transform.SetParent(arm.transform, false);
+            var flashRenderer = flash.AddComponent<SpriteRenderer>();
+            flashRenderer.sharedMaterial = material;
+            flashRenderer.enabled = false;
+
             var animator = player.AddComponent<PlayerAnimator>();
             var animatorSerialized = new SerializedObject(animator);
             animatorSerialized.FindProperty("_renderer").objectReferenceValue = visualRenderer;
-            animatorSerialized.FindProperty("_sheetA").objectReferenceValue = sheetA;
+            animatorSerialized.FindProperty("_bodySheet").objectReferenceValue = bodySheet;
             animatorSerialized.FindProperty("_sheetB").objectReferenceValue = sheetB;
+            animatorSerialized.FindProperty("_armRenderer").objectReferenceValue = armRenderer;
+            animatorSerialized.FindProperty("_flashRenderer").objectReferenceValue = flashRenderer;
+            animatorSerialized.FindProperty("_armTexture").objectReferenceValue = armTexture;
+            animatorSerialized.FindProperty("_flashTexture").objectReferenceValue = flashTexture;
             animatorSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<PlayerMovement>();

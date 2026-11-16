@@ -12,30 +12,48 @@ namespace LastWave.Player
     /// Every machine runs this for every player and reads only state that is already synced, so all machines
     /// show the same pose and facing: <see cref="PlayerLife"/> (standing, downed, dead, revived),
     /// <see cref="PlayerHealth"/> (a drop while standing = hurt), <see cref="PlayerShooting.OnShotFired"/> (server
-    /// broadcast), <see cref="PlayerRepair.IsInteractingSynced"/> (server-written), <see cref="PlayerMovement.FacingRight"/>
+    /// broadcast, muzzle flash), <see cref="PlayerMovement.AimAngleDegrees"/> (owner-written, arm angle), <see cref="PlayerRepair.IsInteractingSynced"/> (server-written), <see cref="PlayerMovement.FacingRight"/>
     /// (owner-written) and the position delta of the networked transform (walking).
     /// </para>
     /// <para>
-    /// Sheet A rows (0-based): 0 idle, 1 walk, 2 shoot, 3 repair/revive. Sheet B rows: 0 hurt, 1 falling then lying
-    /// (loops from <see cref="GameConfig.PlayerDownedLoopStartFrame"/>), 2 death, 3 getting up after a revive.
-    /// Priority, highest first: dead, downed, getting up, hurt, repair/revive, shoot, walk, idle.
+    /// Body sheet (player-body.png, story 019) rows (0-based): 0 idle, 1 walk, 2 hurt (these three have no arms or rifle),
+    /// 3 repair/revive (kneeling, arms drawn, rifle slung). Sheet B (player-b.png) rows: 1 falling then lying
+    /// (loops from <see cref="GameConfig.PlayerDownedLoopStartFrame"/>), 2 death, 3 getting up after a revive; row 0 is unused.
+    /// Priority, highest first: dead, downed, getting up, hurt, repair/revive, walk, idle.
+    /// </para>
+    /// <para>
+    /// Story 019 (<c>design/game-brief.md</c> Feature 19, "แบบ A"): a separate arm + rifle sprite turns at the shoulder toward
+    /// the aim (<see cref="PlayerMovement.AimAngleDegrees"/>, synced; remote players smooth toward it), clamped to
+    /// <see cref="GameConfig.PlayerArmClampDegrees"/>, mirrored with local scale X = -1 when facing left so the rifle is never
+    /// upside down. It shows only over the idle, walk and hurt rows. A muzzle flash plays at the muzzle, as a child of the arm,
+    /// on <see cref="PlayerShooting.OnShotFired"/>. The pose math is shared with the server's bullet spawn
+    /// (<see cref="PlayerShooting.MuzzleLocal"/>).
     /// </para>
     /// <para>
     /// Story 015: also owns the player's solid hitbox, a <see cref="PolygonCollider2D"/> on the root traced ONCE from
-    /// sheet A idle frame 1 (<see cref="SpriteHitbox"/>, cached for every player), never per animation frame, and mirrored
+    /// the body sheet's idle frame 1 (<see cref="SpriteHitbox"/>, cached for every player), never per animation frame, and mirrored
     /// only when <see cref="PlayerMovement.FacingRight"/> changes. Same polygon on every machine.
     /// </para>
     /// </summary>
     public sealed class PlayerAnimator : NetworkBehaviour
     {
-        private const int RowIdle = 0, RowWalk = 1, RowShoot = 2, RowRepair = 3;      // sheet A
-        private const int RowHurt = 0, RowDown = 1, RowDeath = 2, RowGetUp = 3;       // sheet B
+        private const int RowIdle = 0, RowWalk = 1, RowHurt = 2, RowRepair = 3;       // body sheet (story 019)
+        private const int RowDown = 1, RowDeath = 2, RowGetUp = 3;                    // sheet B
+        private const int FlashColumns = 2, FlashRows = 2;                            // muzzle-flash.png grid
 
-        private enum Clip { None, Idle, Walk, Shoot, Repair, Hurt, Down, Dead, GetUp }
+        private enum Clip { None, Idle, Walk, Repair, Hurt, Down, Dead, GetUp }
+
+        // Story 019: the arm sprite per (texture, pixels per unit, pivot pixel), built once and shared by every player.
+        private static readonly System.Collections.Generic.Dictionary<(int, float, Vector2), Sprite> ArmSprites =
+            new System.Collections.Generic.Dictionary<(int, float, Vector2), Sprite>();
 
         [SerializeField] private SpriteRenderer _renderer;
-        [SerializeField] private Texture2D _sheetA;
-        [SerializeField] private Texture2D _sheetB;
+        [SerializeField] private Texture2D _bodySheet;   // player-body.png (story 019)
+        [SerializeField] private Texture2D _sheetB;      // player-b.png
+        [SerializeField] private SpriteRenderer _armRenderer;   // story 019: child "Arm" of the root
+        [SerializeField] private SpriteRenderer _flashRenderer; // story 019: child "MuzzleFlash" of the arm
+        [SerializeField] private Texture2D _armTexture;         // player-arms-rifle.png
+        [SerializeField] private Texture2D _flashTexture;       // muzzle-flash.png
 
         private GameConfig _config;
         private PlayerLife _life;
@@ -49,7 +67,10 @@ namespace LastWave.Player
         private Clip _clip;
         private float _clipStart;   // when the current clip started (looping clips)
         private float _stateStart;  // when the life state last changed (down, death)
-        private float _shootStart, _shootUntil;
+        private SpriteSheet _flash;
+        private float _flashStart = float.NegativeInfinity;
+        private float _shownAim;      // aim angle drawn, in world degrees (smoothed on remote players)
+        private bool _aimInitialised;
         private float _hurtStart, _hurtUntil;
         private float _getUpStart, _getUpUntil;
         private float _movingUntil;
@@ -57,6 +78,7 @@ namespace LastWave.Player
         private PolygonCollider2D _hitbox;  // story 015
         private SpriteHitbox _hitboxShape;
         private bool _hitboxFacingRight;
+        private SpriteRenderer _shadow; // soft oval under the feet; hidden whenever the body is hidden
 
         /// <summary>The renderer that draws the soldier. <see cref="PlayerLife"/> tints it per player slot and when downed.</summary>
         public SpriteRenderer BodyRenderer => _renderer;
@@ -71,12 +93,35 @@ namespace LastWave.Player
             _repair = GetComponent<PlayerRepair>();
             _movement = GetComponent<PlayerMovement>();
 
-            _a = SpriteSheet.Get(_sheetA, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            _a = SpriteSheet.Get(_bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
             _b = SpriteSheet.Get(_sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
             // The sprite pivot is the foot; lower the visual so the feet sit half a unit below the root (the old box's bottom).
             _renderer.transform.localPosition = new Vector3(0f, _config.PlayerSpriteOffsetY, 0f);
+            if (_shadow == null)
+            {
+                _shadow = DropShadow.Attach(transform, _renderer.sharedMaterial, _config.PlayerShadowWidth,
+                    _config.ShadowHeightRatio, _config.PlayerShadowFeetY, _config.ShadowAlpha, _config.ShadowSortingOrder);
+            }
+
+            // Story 019: the arm pivots at its shoulder pixel; the flash's pivot is the middle of its cell's left edge.
+            if (_armRenderer != null && _armTexture != null)
+            {
+                _armRenderer.sprite = ArmSprite(_armTexture, _config.PlayerArmPixelsPerUnit, _config.PlayerArmShoulderPixel);
+                _armRenderer.enabled = false;
+            }
+            if (_flashRenderer != null && _flashTexture != null)
+            {
+                _flash = SpriteSheet.GetGrid(_flashTexture, FlashColumns, FlashRows, _config.PlayerMuzzleFlashPixelsPerUnit, new Vector2(0f, 0.5f));
+                Vector2 muzzle = PlayerShooting.MuzzleFromShoulder(_config);
+                _flashRenderer.transform.localPosition = new Vector3(muzzle.x, muzzle.y, 0f);
+                _flashRenderer.transform.localScale = Vector3.one * _config.PlayerMuzzleFlashScale;
+                _flashRenderer.enabled = false;
+            }
+            _aimInitialised = false;
+            _flashStart = float.NegativeInfinity;
 
             // Story 015: the polygon hitbox, traced from idle frame 1 at the base visual offset (not the death-row nudge).
+            // Since story 019 that is the body without the arm and rifle.
             _hitbox = GetComponent<PolygonCollider2D>();
             if (_hitbox != null)
             {
@@ -89,7 +134,7 @@ namespace LastWave.Player
             float now = Time.time;
             _clip = Clip.None;
             _stateStart = now - 1000f; // joined late: a downed or dead player is already lying down, skip the fall
-            _shootUntil = _hurtUntil = _getUpUntil = _movingUntil = 0f;
+            _hurtUntil = _getUpUntil = _movingUntil = 0f;
             _lastPosition = transform.position;
 
             _life.OnStateChanged += HandleStateChanged;
@@ -109,8 +154,9 @@ namespace LastWave.Player
         {
             float now = Time.time;
             _stateStart = now;
-            _shootUntil = _hurtUntil = 0f;
+            _hurtUntil = 0f;
             _getUpUntil = 0f;
+            _flashStart = float.NegativeInfinity;
             if (previous == PlayerState.Downed && current == PlayerState.Standing)
             {
                 // A revive finished (a respawn from Dead just stands, no get-up).
@@ -127,10 +173,10 @@ namespace LastWave.Player
             _hurtUntil = _hurtStart + _config.PlayerHurtSeconds;
         }
 
+        // Story 019: the shot no longer changes the body pose; it plays the muzzle flash.
         private void HandleShotFired()
         {
-            _shootStart = Time.time;
-            _shootUntil = _shootStart + _config.PlayerShootSeconds;
+            _flashStart = Time.time;
         }
 
         private void Update()
@@ -168,6 +214,75 @@ namespace LastWave.Player
                 float visibleFor = deathFrames / Mathf.Max(0.01f, _config.PlayerDownFps) + _config.PlayerDeadHoldSeconds;
                 _renderer.enabled = now - _stateStart <= visibleFor;
             }
+            if (_shadow != null) _shadow.enabled = _renderer.enabled;
+            UpdateArm(now);
+        }
+
+        // Story 019: turn the arm toward the aim, hide it outside the idle, walk and hurt poses, and play the muzzle flash.
+        private void UpdateArm(float now)
+        {
+            if (_armRenderer == null) return;
+            bool facingRight = _movement.FacingRight;
+
+            float target = _movement.AimAngleDegrees;
+            if (IsOwner || !_aimInitialised)
+            {
+                _shownAim = target;
+                _aimInitialised = true;
+            }
+            else
+            {
+                float blend = 1f - Mathf.Exp(-_config.PlayerAimRemoteSmoothing * Time.deltaTime);
+                _shownAim = Mathf.LerpAngle(_shownAim, target, blend);
+            }
+
+            int bodyRow;
+            switch (_clip)
+            {
+                case Clip.Idle: bodyRow = RowIdle; break;
+                case Clip.Walk: bodyRow = RowWalk; break;
+                case Clip.Hurt: bodyRow = RowHurt; break;
+                default: bodyRow = -1; break; // repair/revive kneels with its own arms; downed, dead, getting up: no arm
+            }
+            bool armVisible = bodyRow >= 0 && _renderer.enabled;
+            _armRenderer.enabled = armVisible;
+            if (armVisible)
+            {
+                Vector2 shoulder = PlayerShooting.ShoulderLocal(_config, facingRight, bodyRow);
+                float angle = PlayerShooting.ArmLocalAngle(_shownAim, facingRight, _config.PlayerArmClampDegrees);
+                var arm = _armRenderer.transform;
+                arm.localPosition = new Vector3(shoulder.x, shoulder.y, 0f);
+                arm.localScale = new Vector3(facingRight ? 1f : -1f, 1f, 1f);
+                arm.localRotation = Quaternion.Euler(0f, 0f, PlayerShooting.ArmRotationZ(angle, facingRight));
+                _armRenderer.color = _renderer.color; // same player tint as the body (PlayerLife)
+                _armRenderer.sortingOrder = _renderer.sortingOrder + _config.PlayerArmSortingOffset;
+            }
+
+            if (_flashRenderer == null || _flash == null) return;
+            int frames = Mathf.Clamp(_config.PlayerMuzzleFlashFrames, 1, FlashColumns * FlashRows);
+            int index = (int)((now - _flashStart) * Mathf.Max(0.01f, _config.PlayerMuzzleFlashFps));
+            bool flashVisible = armVisible && index >= 0 && index < frames;
+            _flashRenderer.enabled = flashVisible;
+            if (flashVisible)
+            {
+                _flashRenderer.sprite = _flash.Frame(index / FlashColumns, index % FlashColumns);
+                _flashRenderer.sortingOrder = _armRenderer.sortingOrder + 1;
+            }
+        }
+
+        // The whole arm image as one sprite pivoted at the shoulder pixel (top-left origin). Tight mesh: the piece is
+        // small in a large transparent image (needs Read/Write, set by LastWaveSetup).
+        private static Sprite ArmSprite(Texture2D texture, float pixelsPerUnit, Vector2 shoulderPixel)
+        {
+            pixelsPerUnit = Mathf.Max(1f, pixelsPerUnit);
+            var key = (texture.GetInstanceID(), pixelsPerUnit, shoulderPixel);
+            if (ArmSprites.TryGetValue(key, out var cached) && cached != null) return cached;
+            var pivot = new Vector2(shoulderPixel.x / texture.width, 1f - shoulderPixel.y / texture.height);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), pivot, pixelsPerUnit, 0,
+                texture.isReadable ? SpriteMeshType.Tight : SpriteMeshType.FullRect);
+            sprite.name = texture.name + "_arm";
+            ArmSprites[key] = sprite;
+            return sprite;
         }
 
         // Walking is read from the networked transform on every machine, so remote players animate too.
@@ -192,7 +307,6 @@ namespace LastWave.Player
             if (now < _getUpUntil) return Clip.GetUp;
             if (now < _hurtUntil) return Clip.Hurt;
             if (_repair.IsInteractingSynced) return Clip.Repair;
-            if (now < _shootUntil) return Clip.Shoot;
             if (now < _movingUntil) return Clip.Walk;
             return Clip.Idle;
         }
@@ -203,8 +317,7 @@ namespace LastWave.Player
             {
                 case Clip.Walk: return _a.Frame(RowWalk, Loop(now - _clipStart, _config.PlayerWalkFps, _a.Columns));
                 case Clip.Repair: return _a.Frame(RowRepair, Loop(now - _clipStart, _config.PlayerRepairFps, _a.Columns));
-                case Clip.Shoot: return _a.Frame(RowShoot, Fit(now - _shootStart, _config.PlayerShootSeconds, _a.Columns));
-                case Clip.Hurt: return _b.Frame(RowHurt, Fit(now - _hurtStart, _config.PlayerHurtSeconds, _b.Columns));
+                case Clip.Hurt: return _a.Frame(RowHurt, Fit(now - _hurtStart, _config.PlayerHurtSeconds, _a.Columns));
                 case Clip.Down: return _b.Frame(RowDown, FallThenLoop(now - _stateStart, _config.PlayerDownFps, _b.Columns, _config.PlayerDownedLoopStartFrame));
                 case Clip.Dead:
                 {

@@ -257,6 +257,22 @@ MonoBehaviour:
   PlayerWalkSpeedThreshold: 0.3
   PlayerWalkStopDelaySeconds: 0.12
   PlayerFacingDeadZone: 0.1
+  PlayerBodyShoulderPixel: {x: 103, y: 122}
+  PlayerBodyShoulderRowOffsetPixels:
+  - {x: 0, y: 0}
+  - {x: 0, y: 0}
+  - {x: 0, y: 0}
+  PlayerArmShoulderPixel: {x: 612, y: 632}
+  PlayerArmMuzzlePixel: {x: 787, y: 637}
+  PlayerArmPixelsPerUnit: 300
+  PlayerArmClampDegrees: 60
+  PlayerArmSortingOffset: 1
+  PlayerMuzzleFlashFrames: 3
+  PlayerMuzzleFlashFps: 30
+  PlayerMuzzleFlashPixelsPerUnit: 1600
+  PlayerMuzzleFlashScale: 1
+  PlayerAimSyncStepDegrees: 0.5
+  PlayerAimRemoteSmoothing: 20
   EnemySheetCellPixels: 256
   EnemyNormalLook:
     PixelsPerUnit: 170

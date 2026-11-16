@@ -226,7 +226,10 @@ namespace LastWave.Config
         /// <summary>Seconds before a bullet despawns on its own.</summary>
         [Min(0.01f)] public float BulletLifetime = 1.5f;
 
-        /// <summary>Distance from the player centre, along the aim direction, where a bullet appears.</summary>
+        /// <summary>
+        /// Distance from the player centre, along the aim direction, where a bullet appeared. Unused since story 019:
+        /// bullets start at the rifle's muzzle (<see cref="PlayerArmMuzzlePixel"/>).
+        /// </summary>
         [Min(0f)] public float BulletSpawnOffset = 0.7f;
 
         /// <summary>Colour of the small marker on a player that shows the aim direction.</summary>
@@ -777,6 +780,55 @@ namespace LastWave.Config
 
         /// <summary>The aim must be at least this far sideways (the X of the unit aim direction, 0 to 1) before the soldier turns around.</summary>
         [Range(0f, 1f)] public float PlayerFacingDeadZone = 0.1f;
+
+        // ---- Story 019: separate arm + rifle rotating at the shoulder (design/game-brief.md Feature 19, "แบบ A") ----
+        // Pixel positions are measured from the art, top-left origin like the art is described. The rest are first
+        // guesses for the designer to tune. Older GameConfig.asset files take these defaults.
+
+        /// <summary>
+        /// The body's shoulder joint in a player-body.png cell, in pixels from the cell's top-left, facing right.
+        /// The arm's shoulder pivot is placed here (mirrored when facing left), so the shoulder caps overlap.
+        /// </summary>
+        public Vector2 PlayerBodyShoulderPixel = new Vector2(103f, 122f);
+
+        /// <summary>
+        /// Extra shoulder nudge per body row (0 idle, 1 walk, 2 hit), in body pixels, facing right, added to
+        /// <see cref="PlayerBodyShoulderPixel"/>. Missing rows count as zero.
+        /// </summary>
+        public Vector2[] PlayerBodyShoulderRowOffsetPixels = { Vector2.zero, Vector2.zero, Vector2.zero };
+
+        /// <summary>The shoulder pivot of the arm piece in player-arms-rifle.png, in pixels from the image's top-left. The arm rotates around it.</summary>
+        public Vector2 PlayerArmShoulderPixel = new Vector2(612f, 632f);
+
+        /// <summary>The muzzle tip in player-arms-rifle.png, in pixels from the image's top-left. Bullets and the muzzle flash start here.</summary>
+        public Vector2 PlayerArmMuzzlePixel = new Vector2(787f, 637f);
+
+        /// <summary>Pixels per world unit of the arm piece: the arm art is drawn larger than the body sheet, so this is above <see cref="PlayerSpritePixelsPerUnit"/>.</summary>
+        [Min(1f)] public float PlayerArmPixelsPerUnit = 300f;
+
+        /// <summary>The arm turns at most this many degrees up or down from horizontal. Aiming further still fires toward the mouse; the arm holds at the limit.</summary>
+        [Range(0f, 90f)] public float PlayerArmClampDegrees = 60f;
+
+        /// <summary>The arm draws this many sorting orders above the body (the muzzle flash one more): in front of the body, under the HUD.</summary>
+        public int PlayerArmSortingOffset = 1;
+
+        /// <summary>Frames of muzzle-flash.png played per shot, in reading order (the 2 x 2 grid's 4th cell holds only sparks).</summary>
+        [Range(1, 4)] public int PlayerMuzzleFlashFrames = 3;
+
+        /// <summary>Frames per second of the muzzle flash.</summary>
+        [Min(0.01f)] public float PlayerMuzzleFlashFps = 30f;
+
+        /// <summary>Pixels per world unit of muzzle-flash.png (627 px cells): sets how big the flash is drawn.</summary>
+        [Min(1f)] public float PlayerMuzzleFlashPixelsPerUnit = 1600f;
+
+        /// <summary>Extra scale on the muzzle flash, on top of its pixels per unit.</summary>
+        [Min(0f)] public float PlayerMuzzleFlashScale = 1f;
+
+        /// <summary>The owner sends its aim angle rounded to this many degrees (a 16-bit value); remote players smooth toward it.</summary>
+        [Min(0.01f)] public float PlayerAimSyncStepDegrees = 0.5f;
+
+        /// <summary>How fast a remote player's arm catches up with the synced aim angle (exponential rate per second; higher = snappier).</summary>
+        [Min(0f)] public float PlayerAimRemoteSmoothing = 20f;
 
         // ---- Story 014: enemy art, bullet art and hit spark ----
         // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields.

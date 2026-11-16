@@ -12,7 +12,8 @@ namespace LastWave.Player
     /// (movement is owner-authoritative on purpose, see story 002). On every other machine the body is
     /// kinematic, so only the NetworkTransform moves it. The body no longer rotates to the mouse (story 013):
     /// the soldier sprite is flipped left or right by <see cref="FacingRight"/>, which the owner writes and
-    /// everyone reads. The colour by client id is applied by <see cref="PlayerLife"/>.
+    /// everyone reads. Story 019: the aim angle is shared too (<see cref="AimAngleDegrees"/>), so every machine turns
+    /// the arm the same way. The colour by client id is applied by <see cref="PlayerLife"/>.
     /// </summary>
     /// <example>
     /// Player prefab = Rigidbody2D + PolygonCollider2D (traced by PlayerAnimator, story 015) + NetworkObject + NetworkTransform
@@ -26,9 +27,14 @@ namespace LastWave.Player
         private static Sprite _squareSprite;
 
         // Which way the soldier faces (story 013). Written by the owner, read by every machine, so everyone
-        // draws the same facing. Aim itself stays owner-only; only this one bit needs to travel.
+        // draws the same facing.
         private readonly NetworkVariable<bool> _facingRight = new NetworkVariable<bool>(
             true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        // Story 019: the aim angle, so every machine turns this player's arm the same way. Owner-written, in steps of
+        // GameConfig.PlayerAimSyncStepDegrees (16 bits), written only when the step changes.
+        private readonly NetworkVariable<short> _aimSteps = new NetworkVariable<short>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
         private GameConfig _config;
         private Rigidbody2D _body;
@@ -53,12 +59,22 @@ namespace LastWave.Player
 
         /// <summary>
         /// Unit vector from this player towards the mouse, updated every frame on the owner.
-        /// Meaningful on the owner only; defaults to facing right.
+        /// Meaningful on the owner only; defaults to facing right. Other machines use <see cref="AimAngleDegrees"/>.
         /// </summary>
         public Vector2 AimDirection { get; private set; } = Vector2.right;
 
         /// <summary>True when the soldier faces right (aim to the right of the player), false when left. Same on every machine.</summary>
         public bool FacingRight => _facingRight.Value;
+
+        /// <summary>
+        /// Aim angle in world degrees (0 = right, 90 = up), on every machine (story 019). The owner reads its exact aim;
+        /// other machines read the synced value, rounded to <see cref="GameConfig.PlayerAimSyncStepDegrees"/>.
+        /// </summary>
+        public float AimAngleDegrees => IsOwner
+            ? Mathf.Atan2(AimDirection.y, AimDirection.x) * Mathf.Rad2Deg
+            : _aimSteps.Value * StepDegrees;
+
+        private float StepDegrees => Mathf.Max(0.01f, (_config != null ? _config : GameConfig.Instance).PlayerAimSyncStepDegrees);
 
         /// <summary>Caches components and, on the owner, sets the spawn position.</summary>
         public override void OnNetworkSpawn()
@@ -124,6 +140,11 @@ namespace LastWave.Player
             if (toMouse.sqrMagnitude <= Mathf.Epsilon) return; // keep the last aim when the mouse is on the player
 
             AimDirection = toMouse.normalized;
+
+            // Story 019: share the aim angle, rounded, and only when the rounded value changes.
+            float degrees = Mathf.Atan2(AimDirection.y, AimDirection.x) * Mathf.Rad2Deg;
+            short steps = (short)Mathf.Clamp(Mathf.RoundToInt(degrees / StepDegrees), short.MinValue, short.MaxValue);
+            if (steps != _aimSteps.Value) _aimSteps.Value = steps;
 
             // Flip only once the mouse is clearly on the other side (dead zone), so a mouse straight above
             // or below the player does not make the sprite jitter. Written only when it changes.
