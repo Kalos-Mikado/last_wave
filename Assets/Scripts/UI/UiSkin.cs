@@ -256,6 +256,89 @@ namespace LastWave.UI
             return _upgradeIcons[(int)kind];
         }
 
+        /// <summary>
+        /// Story 021: a horizontal 0-1 slider. The track is <see cref="GameConfig.UiSliderTrackTexture"/> when set, else
+        /// the player bar frame (<see cref="GameConfig.HudPlayerBarTexture"/>), drawn with <see cref="Bar"/> so the chosen
+        /// share is filled. The knob is <see cref="GameConfig.UiSliderKnobTexture"/> when set, else a plain light block.
+        /// Click or drag anywhere on the track (or the knob) to set the value. Returns the new value.
+        /// </summary>
+        /// <param name="rect">Track area in screen pixels; the knob is centred on it vertically and may stand above and below.</param>
+        /// <param name="value">Current value, 0 to 1.</param>
+        public static float Slider(Rect rect, float value)
+        {
+            var config = GameConfig.Instance;
+            bool custom = config.UiSliderTrackTexture != null;
+            var track = custom ? config.UiSliderTrackTexture : config.HudPlayerBarTexture;
+            var border = custom ? config.UiSliderTrackBorder : config.HudPlayerBarBorder;
+            var inset = custom ? config.UiSliderTrackFillInset : config.HudPlayerBarFillInset;
+            float art = rect.height / FrameStyle(track).normal.background.height;
+            float innerX = rect.x + inset.x * art, innerWidth = rect.width - (inset.x + inset.y) * art;
+            var knob = config.SettingsSliderKnobSize * Scale;
+            float hitHeight = Mathf.Max(rect.height, knob.y);
+            var hit = new Rect(rect.x - knob.x * 0.5f, rect.center.y - hitHeight * 0.5f, rect.width + knob.x, hitHeight);
+
+            int id = GUIUtility.GetControlID(FocusType.Passive);
+            var e = Event.current;
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || !hit.Contains(e.mousePosition)) break;
+                    GUIUtility.hotControl = id;
+                    value = Mathf.Clamp01((e.mousePosition.x - innerX) / innerWidth);
+                    GUI.changed = true;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl != id) break;
+                    value = Mathf.Clamp01((e.mousePosition.x - innerX) / innerWidth);
+                    GUI.changed = true;
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (GUIUtility.hotControl != id) break;
+                    GUIUtility.hotControl = 0;
+                    e.Use();
+                    break;
+                case EventType.Repaint:
+                    Bar(rect, track, border, inset, value, config.SettingsSliderFillColor, config.SettingsSliderBackColor);
+                    var knobRect = new Rect(innerX + innerWidth * Mathf.Clamp01(value) - knob.x * 0.5f, rect.center.y - knob.y * 0.5f, knob.x, knob.y);
+                    if (config.UiSliderKnobTexture != null)
+                    {
+                        GUI.DrawTexture(knobRect, Trimmed(config.UiSliderKnobTexture), ScaleMode.ScaleToFit);
+                        break;
+                    }
+                    float edge = config.SettingsSliderKnobEdge * Scale;
+                    var previous = GUI.color;
+                    GUI.color = config.SettingsSliderKnobEdgeColor;
+                    GUI.DrawTexture(knobRect, Texture2D.whiteTexture);
+                    GUI.color = config.SettingsSliderKnobColor;
+                    GUI.DrawTexture(new Rect(knobRect.x + edge, knobRect.y + edge, knobRect.width - 2f * edge, knobRect.height - 2f * edge), Texture2D.whiteTexture);
+                    GUI.color = previous;
+                    break;
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Story 021: a button that is only a picture (checkbox, arrow), trimmed to its opaque pixels and kept to its aspect
+        /// inside <paramref name="rect"/>. It is dimmed by <see cref="GameConfig.UiImageButtonIdleTint"/> unless the mouse is
+        /// over it. Returns true on the frame it is clicked. The picture must be Read/Write.
+        /// </summary>
+        /// <param name="rect">Button area in screen pixels.</param>
+        /// <param name="picture">The picture.</param>
+        public static bool ImageButton(Rect rect, Texture2D picture)
+        {
+            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            if (Event.current.type == EventType.Repaint)
+            {
+                var previous = GUI.color;
+                if (!rect.Contains(Event.current.mousePosition)) GUI.color = previous * GameConfig.Instance.UiImageButtonIdleTint;
+                GUI.DrawTexture(rect, Trimmed(picture), ScaleMode.ScaleToFit);
+                GUI.color = previous;
+            }
+            return clicked;
+        }
+
         /// <summary>Draws a HUD icon keeping its aspect inside <paramref name="rect"/> (screen pixels). Draws on repaint only.</summary>
         /// <param name="rect">Icon area in screen pixels.</param>
         /// <param name="icon">Which icon.</param>

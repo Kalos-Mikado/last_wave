@@ -382,6 +382,51 @@ MonoBehaviour:
   HudRegenIconHoldSeconds: 0.6
   CrosshairSize: 40
   CrosshairGuiDepth: -2000
+  SettingsDefaultVolumes: {x: 0.8, y: 0.7, z: 0.8}
+  SettingsFullscreenMode: 1
+  SettingsMasterDrivesAudioListener: 1
+  SettingsPanelSize: {x: 780, y: 720}
+  SettingsPanelPadding: {x: 70, y: 60}
+  SettingsTitleHeight: 56
+  SettingsRowHeight: 64
+  SettingsRowSpacing: 18
+  SettingsLabelWidth: 250
+  SettingsToggleSize: {x: 160, y: 64}
+  SettingsArrowSize: 64
+  SettingsSliderHeight: 30
+  SettingsValueWidth: 90
+  SettingsButtonSize: {x: 250, y: 72}
+  SettingsButtonGap: 36
+  SettingsTitleFontSize: 40
+  SettingsLabelFontSize: 26
+  SettingsButtonFontSize: 28
+  SettingsDimColor: {r: 0, g: 0, b: 0, a: 0.6}
+  SettingsGuiDepth: -3000
+  SettingsTitleText: Setting
+  SettingsFullscreenLabel: Fullscreen
+  SettingsResolutionLabel: Resolution
+  SettingsMasterLabel: Master volume
+  SettingsMusicLabel: Music
+  SettingsSfxLabel: Effects
+  SettingsOnText: On
+  SettingsOffText: Off
+  SettingsApplyText: Apply
+  SettingsBackText: Back
+  UiSliderTrackTexture: {fileID: 0}
+  UiSliderTrackBorder: {x: 16, y: 16, z: 16, w: 16}
+  UiSliderTrackFillInset: {x: 9, y: 9, z: 9, w: 9}
+  UiSliderKnobTexture: {fileID: 0}
+  UiCheckboxOffTexture: {fileID: 0}
+  UiCheckboxOnTexture: {fileID: 0}
+  UiArrowLeftTexture: {fileID: 0}
+  UiArrowRightTexture: {fileID: 0}
+  SettingsSliderKnobSize: {x: 22, y: 48}
+  SettingsSliderKnobColor: {r: 0.92, g: 0.92, b: 0.88, a: 1}
+  SettingsSliderKnobEdgeColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
+  SettingsSliderKnobEdge: 3
+  SettingsSliderFillColor: {r: 0.85, g: 0.65, b: 0.25, a: 1}
+  SettingsSliderBackColor: {r: 0, g: 0, b: 0, a: 0.7}
+  UiImageButtonIdleTint: {r: 0.82, g: 0.82, b: 0.82, a: 1}
   DebugForceOutcomeDelaySeconds: 1
   MenuSceneName: Menu
   GameSceneName: Game

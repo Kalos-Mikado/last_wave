@@ -8,6 +8,8 @@ public class ScreenshotOnArg : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {
+        // Story 021: --open-settings shows the Setting screen over the first scene (nothing opens it until story 022).
+        if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "--open-settings") >= 0) LastWave.UI.SettingsPanel.Open(null);
         if (Arg("--screenshot") == null) return;
         var go = new GameObject(nameof(ScreenshotOnArg));
         DontDestroyOnLoad(go);

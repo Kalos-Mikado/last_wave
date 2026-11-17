@@ -76,6 +76,12 @@ namespace LastWave.EditorTools
         private const string CardFrameTexturePath = "Assets/Art/UI/Upgrades/frame-blue.png";  // story 018
         private const string CardFrameHoverTexturePath = "Assets/Art/UI/Upgrades/frame-gold.png"; // story 018
         private const string UpgradeIconsTexturePath = "Assets/Art/UI/Upgrades/icon-upgrade.png"; // story 018
+        private const string SliderTrackTexturePath = "Assets/Art/UI/slider-track.png";     // story 021, optional
+        private const string SliderKnobTexturePath = "Assets/Art/UI/slider-knob.png";       // story 021, optional
+        private const string CheckboxOffTexturePath = "Assets/Art/UI/checkbox-off.png";     // story 021, optional
+        private const string CheckboxOnTexturePath = "Assets/Art/UI/checkbox-on.png";       // story 021, optional
+        private const string ArrowLeftTexturePath = "Assets/Art/UI/arrow-left.png";         // story 021, optional
+        private const string ArrowRightTexturePath = "Assets/Art/UI/arrow-right.png";       // story 021, optional
         private const string NetworkManagerPrefabPath = "Assets/Prefabs/NetworkManager.prefab";
         private const string ScenesFolder = "Assets/Scenes";
         private const string UnlitSpriteShader = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
@@ -167,7 +173,23 @@ namespace LastWave.EditorTools
             config.UpgradeFrameTexture = LoadTexture(CardFrameTexturePath);
             config.UpgradeFrameHoverTexture = LoadTexture(CardFrameHoverTexturePath);
             config.UpgradeIconsTexture = LoadTexture(UpgradeIconsTexturePath);
+            // Story 021: optional Setting control art. Each slot is filled only when its file exists; otherwise the slot
+            // is left as it is (empty = UiSkin's fallback), with no warning.
+            config.UiSliderTrackTexture = LoadOptionalTexture(SliderTrackTexturePath, config.UiSliderTrackTexture);
+            config.UiSliderKnobTexture = LoadOptionalTexture(SliderKnobTexturePath, config.UiSliderKnobTexture);
+            config.UiCheckboxOffTexture = LoadOptionalTexture(CheckboxOffTexturePath, config.UiCheckboxOffTexture);
+            config.UiCheckboxOnTexture = LoadOptionalTexture(CheckboxOnTexturePath, config.UiCheckboxOnTexture);
+            config.UiArrowLeftTexture = LoadOptionalTexture(ArrowLeftTexturePath, config.UiArrowLeftTexture);
+            config.UiArrowRightTexture = LoadOptionalTexture(ArrowRightTexturePath, config.UiArrowRightTexture);
             EditorUtility.SetDirty(config);
+        }
+
+        // Story 021: the texture at path made Read/Write (UiSkin trims it), or current when no texture is there.
+        private static Texture2D LoadOptionalTexture(string path, Texture2D current)
+        {
+            if (!(AssetImporter.GetAtPath(path) is TextureImporter)) return current;
+            EnsureReadable(path);
+            return LoadTexture(path);
         }
 
         // Story 016: Player Settings > Icon > Default Icon (NamedBuildTarget.Unknown is the default for every platform),

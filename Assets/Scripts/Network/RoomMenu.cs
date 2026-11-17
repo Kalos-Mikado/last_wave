@@ -85,6 +85,8 @@ namespace LastWave.Network
                     Label(config, "Room code:", config.UiTextColor);
                     _codeInput = Field(config, _codeInput);
                     if (Button(config, "Join room")) _room.JoinRoom(_codeInput);
+                    // TEMP (story 021): opens the Setting screen until story 022's Main Menu replaces this panel.
+                    if (Button(config, "Setting") && !SettingsPanel.IsOpen) SettingsPanel.Open(null);
                     break;
 
                 case RoomState.Busy:

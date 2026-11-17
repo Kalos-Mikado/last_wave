@@ -1152,6 +1152,149 @@ namespace LastWave.Config
         /// <summary>IMGUI depth of the crosshair: lower draws on top. Below the end screen (-1000) and the upgrade cards (-100).</summary>
         public int CrosshairGuiDepth = -2000;
 
+        // ---- Story 021: Setting screen (UI/SettingsPanel), shared by the Main Menu (022) and the pause menu (024) ----
+        // Like the earlier blocks, these defaults apply when an older GameConfig.asset lacks the fields. Sizes are
+        // reference pixels (see UiReferenceHeight); the panel is centred on the screen. Every number is a first guess.
+
+        /// <summary>Story 021: volumes used the first time the game runs, before anything is saved (x master, y music, z effects; 0 to 1).</summary>
+        public Vector3 SettingsDefaultVolumes = new Vector3(0.8f, 0.7f, 0.8f);
+
+        /// <summary>Story 021: the mode "Fullscreen: On" applies. FullScreenWindow is borderless at the chosen resolution; ExclusiveFullScreen changes the display mode.</summary>
+        public FullScreenMode SettingsFullscreenMode = FullScreenMode.FullScreenWindow;
+
+        /// <summary>Story 021: when true the master volume also sets <c>AudioListener.volume</c>, so any sound added later follows it without code.</summary>
+        public bool SettingsMasterDrivesAudioListener = true;
+
+        /// <summary>Story 021: size of the Setting panel (width, height), centred on the screen.</summary>
+        public Vector2 SettingsPanelSize = new Vector2(780f, 720f);
+
+        /// <summary>Story 021: space between the panel edge and its rows (x left and right, y top and bottom); keeps the rows inside the panel frame.</summary>
+        public Vector2 SettingsPanelPadding = new Vector2(70f, 60f);
+
+        /// <summary>Story 021: height of the title row.</summary>
+        [Min(1f)] public float SettingsTitleHeight = 56f;
+
+        /// <summary>Story 021: height of one setting row (fullscreen, resolution, each volume).</summary>
+        [Min(1f)] public float SettingsRowHeight = 64f;
+
+        /// <summary>Story 021: vertical gap between two rows.</summary>
+        [Min(0f)] public float SettingsRowSpacing = 18f;
+
+        /// <summary>Story 021: width of the label column on the left of each row; the control takes the rest.</summary>
+        [Min(1f)] public float SettingsLabelWidth = 250f;
+
+        /// <summary>Story 021: size of the fullscreen On/Off button (width, height). With checkbox art the box is the height square.</summary>
+        public Vector2 SettingsToggleSize = new Vector2(160f, 64f);
+
+        /// <summary>Story 021: side of the square resolution arrow buttons.</summary>
+        [Min(1f)] public float SettingsArrowSize = 64f;
+
+        /// <summary>Story 021: height of a volume slider track, centred in its row.</summary>
+        [Min(1f)] public float SettingsSliderHeight = 30f;
+
+        /// <summary>Story 021: width of the percentage text right of each slider.</summary>
+        [Min(0f)] public float SettingsValueWidth = 90f;
+
+        /// <summary>Story 021: size of the Apply and Back buttons (width, height).</summary>
+        public Vector2 SettingsButtonSize = new Vector2(250f, 72f);
+
+        /// <summary>Story 021: gap between the Apply and Back buttons.</summary>
+        [Min(0f)] public float SettingsButtonGap = 36f;
+
+        /// <summary>Story 021: font size of the title.</summary>
+        [Min(8)] public int SettingsTitleFontSize = 40;
+
+        /// <summary>Story 021: font size of row labels, the resolution text and the percentages.</summary>
+        [Min(8)] public int SettingsLabelFontSize = 26;
+
+        /// <summary>Story 021: font size of the button text (On/Off, arrows, Apply, Back).</summary>
+        [Min(8)] public int SettingsButtonFontSize = 28;
+
+        /// <summary>Story 021: overlay drawn over the whole screen behind the panel (alpha = how much is dimmed).</summary>
+        public Color SettingsDimColor = new Color(0f, 0f, 0f, 0.6f);
+
+        /// <summary>Story 021: IMGUI depth of the Setting screen: lower draws on top. Above the crosshair (-2000) and the end screen (-1000).</summary>
+        public int SettingsGuiDepth = -3000;
+
+        /// <summary>Story 021: title of the Setting screen.</summary>
+        public string SettingsTitleText = "Setting";
+
+        /// <summary>Story 021: label of the fullscreen row.</summary>
+        public string SettingsFullscreenLabel = "Fullscreen";
+
+        /// <summary>Story 021: label of the resolution row.</summary>
+        public string SettingsResolutionLabel = "Resolution";
+
+        /// <summary>Story 021: label of the master volume row.</summary>
+        public string SettingsMasterLabel = "Master volume";
+
+        /// <summary>Story 021: label of the music volume row.</summary>
+        public string SettingsMusicLabel = "Music";
+
+        /// <summary>Story 021: label of the sound effects volume row.</summary>
+        public string SettingsSfxLabel = "Effects";
+
+        /// <summary>Story 021: fullscreen toggle text when on.</summary>
+        public string SettingsOnText = "On";
+
+        /// <summary>Story 021: fullscreen toggle text when off (windowed).</summary>
+        public string SettingsOffText = "Off";
+
+        /// <summary>Story 021: button that saves and applies the settings (the panel stays open).</summary>
+        public string SettingsApplyText = "Apply";
+
+        /// <summary>Story 021: button that closes the panel, dropping changes not yet applied.</summary>
+        public string SettingsBackText = "Back";
+
+        // Story 021: optional art for the Setting controls. Leave a slot empty to use the fallback named on it; set it
+        // (LastWaveSetup fills it from Art/UI/ when the file exists) and the new picture is used with no code change.
+        // Every picture is trimmed to its opaque pixels at runtime, so it must be Read/Write (LastWaveSetup sets it).
+
+        /// <summary>Story 021: slider track frame (Art/UI/slider-track.png). Empty: <see cref="HudPlayerBarTexture"/> with its border and fill inset.</summary>
+        public Texture2D UiSliderTrackTexture;
+
+        /// <summary>Story 021: 9-slice border of <see cref="UiSliderTrackTexture"/>, in its trimmed pixels (x left, y right, z top, w bottom).</summary>
+        public Vector4 UiSliderTrackBorder = new Vector4(16f, 16f, 16f, 16f);
+
+        /// <summary>Story 021: fill area of <see cref="UiSliderTrackTexture"/>, as insets from its edges in trimmed pixels.</summary>
+        public Vector4 UiSliderTrackFillInset = new Vector4(9f, 9f, 9f, 9f);
+
+        /// <summary>Story 021: slider knob (Art/UI/slider-knob.png), drawn keeping its aspect in <see cref="SettingsSliderKnobSize"/>. Empty: a plain light block with a dark edge.</summary>
+        public Texture2D UiSliderKnobTexture;
+
+        /// <summary>Story 021: checkbox when off (Art/UI/checkbox-off.png). Empty (or <see cref="UiCheckboxOnTexture"/> empty): an art button reading On/Off.</summary>
+        public Texture2D UiCheckboxOffTexture;
+
+        /// <summary>Story 021: checkbox when on (Art/UI/checkbox-on.png).</summary>
+        public Texture2D UiCheckboxOnTexture;
+
+        /// <summary>Story 021: resolution "previous" arrow (Art/UI/arrow-left.png). Empty: an art button reading "&lt;".</summary>
+        public Texture2D UiArrowLeftTexture;
+
+        /// <summary>Story 021: resolution "next" arrow (Art/UI/arrow-right.png). Empty: an art button reading "&gt;".</summary>
+        public Texture2D UiArrowRightTexture;
+
+        /// <summary>Story 021: size of the slider knob (width, height); taller than the track so it is easy to grab.</summary>
+        public Vector2 SettingsSliderKnobSize = new Vector2(22f, 48f);
+
+        /// <summary>Story 021: fallback knob colour (inside) and its edge colour.</summary>
+        public Color SettingsSliderKnobColor = new Color(0.92f, 0.92f, 0.88f, 1f);
+
+        /// <summary>Story 021: fallback knob edge colour.</summary>
+        public Color SettingsSliderKnobEdgeColor = new Color(0.08f, 0.08f, 0.08f, 1f);
+
+        /// <summary>Story 021: fallback knob edge thickness.</summary>
+        [Min(0f)] public float SettingsSliderKnobEdge = 3f;
+
+        /// <summary>Story 021: slider fill colour (the chosen share).</summary>
+        public Color SettingsSliderFillColor = new Color(0.85f, 0.65f, 0.25f, 1f);
+
+        /// <summary>Story 021: slider colour of the empty share.</summary>
+        public Color SettingsSliderBackColor = new Color(0f, 0f, 0f, 0.7f);
+
+        /// <summary>Story 021: tint multiplied on an art-only button (checkbox, arrow) while the mouse is NOT over it; on hover it is drawn untinted, so it lights up.</summary>
+        public Color UiImageButtonIdleTint = new Color(0.82f, 0.82f, 0.82f, 1f);
+
         /// <summary>The look and hitbox for an enemy kind.</summary>
         public EnemyLookDefinition GetEnemyLook(EnemyKind kind)
         {
