@@ -400,7 +400,7 @@ namespace LastWave.Player
             OnStateChanged?.Invoke((PlayerState)previous, (PlayerState)current);
         }
 
-        // The one place the player's colour and visibility are set (PlayerMovement no longer colours the body).
+        // The one place the player's renderer colour (the downed darken) and visibility are set.
         private void ApplyLook()
         {
             if (_config == null) return;
@@ -414,9 +414,9 @@ namespace LastWave.Player
             }
             if (_collider != null) _collider.enabled = inPlay;
 
-            Color body = _config.PlayerColors[(int)(OwnerClientId % (ulong)_config.PlayerColors.Length)];
-            if (state == PlayerState.Downed) body *= _config.DownedTint;
-            _bodyRenderer.color = body;
+            // Story 020: no whole-body tint; the colour comes from the player's picture set (PlayerAnimator). Downed
+            // only darkens the coloured sprite a little (GameConfig.DownedTint); every other state draws it as is.
+            _bodyRenderer.color = state == PlayerState.Downed ? _config.DownedTint : Color.white;
         }
     }
 }

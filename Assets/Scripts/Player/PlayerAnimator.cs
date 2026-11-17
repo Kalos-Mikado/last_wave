@@ -48,7 +48,8 @@ namespace LastWave.Player
             new System.Collections.Generic.Dictionary<(int, float, Vector2), Sprite>();
 
         [SerializeField] private SpriteRenderer _renderer;
-        [SerializeField] private Texture2D _bodySheet;   // player-body.png (story 019)
+        // Story 020: these three are the white set, the fallback when a slot's colour set (GameConfig.Characters) is incomplete.
+        [SerializeField] private Texture2D _bodySheet;   // player-body.png (story 019); also the hitbox source
         [SerializeField] private Texture2D _sheetB;      // player-b.png
         [SerializeField] private SpriteRenderer _armRenderer;   // story 019: child "Arm" of the root
         [SerializeField] private SpriteRenderer _flashRenderer; // story 019: child "MuzzleFlash" of the arm
@@ -80,8 +81,44 @@ namespace LastWave.Player
         private bool _hitboxFacingRight;
         private SpriteRenderer _shadow; // soft oval under the feet; hidden whenever the body is hidden
 
-        /// <summary>The renderer that draws the soldier. <see cref="PlayerLife"/> tints it per player slot and when downed.</summary>
+        // Story 020: sets already warned about as incomplete, so each logs once per session, not once per player.
+        private static readonly System.Collections.Generic.HashSet<string> WarnedSets = new System.Collections.Generic.HashSet<string>();
+
+        /// <summary>The renderer that draws the soldier. <see cref="PlayerLife"/> darkens it while downed (story 020: no tint otherwise).</summary>
         public SpriteRenderer BodyRenderer => _renderer;
+
+        /// <summary>Story 020: display name of the picture set this player is drawn with ("White" when it fell back).</summary>
+        public string CharacterName { get; private set; } = "White";
+
+        // Story 020 (design/game-brief.md Feature 20): picks the slot's set from GameConfig.Characters. If any of its three
+        // textures is missing, the whole player uses the white set on the prefab, with one warning naming the set and file.
+        private void ResolveCharacter(out Texture2D bodySheet, out Texture2D sheetB, out Texture2D armTexture)
+        {
+            bodySheet = _bodySheet;
+            sheetB = _sheetB;
+            armTexture = _armTexture;
+            CharacterName = "White";
+            var set = _config.CharacterForClient(OwnerClientId);
+            if (set == null) return;
+
+            string missing = null;
+            if (set.BodySheet == null) missing = $"player-body-{set.ArtFolder}.png";
+            else if (set.ArmTexture == null) missing = $"player-arms-rifle-{set.ArtFolder}.png";
+            else if (set.SheetB == null) missing = $"player-b-{set.ArtFolder}.png";
+            if (missing != null)
+            {
+                if (WarnedSets.Add(set.DisplayName))
+                {
+                    Debug.LogWarning($"PlayerAnimator: character set '{set.DisplayName}' is missing {missing} " +
+                                     $"(expected in Assets/Art/Player/{set.ArtFolder}/); players in that slot use the white set.");
+                }
+                return;
+            }
+            bodySheet = set.BodySheet;
+            sheetB = set.SheetB;
+            armTexture = set.ArmTexture;
+            CharacterName = set.DisplayName;
+        }
 
         /// <summary>Slices the sheets, positions the visual and subscribes to the events that trigger one-shot clips.</summary>
         public override void OnNetworkSpawn()
@@ -93,8 +130,10 @@ namespace LastWave.Player
             _repair = GetComponent<PlayerRepair>();
             _movement = GetComponent<PlayerMovement>();
 
-            _a = SpriteSheet.Get(_bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
-            _b = SpriteSheet.Get(_sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            // Story 020: this player's picture set by slot (owner client id, known on every machine, so nothing new syncs).
+            ResolveCharacter(out var bodySheet, out var sheetB, out var armTexture);
+            _a = SpriteSheet.Get(bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            _b = SpriteSheet.Get(sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
             // The sprite pivot is the foot; lower the visual so the feet sit half a unit below the root (the old box's bottom).
             _renderer.transform.localPosition = new Vector3(0f, _config.PlayerSpriteOffsetY, 0f);
             if (_shadow == null)
@@ -104,9 +143,9 @@ namespace LastWave.Player
             }
 
             // Story 019: the arm pivots at its shoulder pixel; the flash's pivot is the middle of its cell's left edge.
-            if (_armRenderer != null && _armTexture != null)
+            if (_armRenderer != null && armTexture != null)
             {
-                _armRenderer.sprite = ArmSprite(_armTexture, _config.PlayerArmPixelsPerUnit, _config.PlayerArmShoulderPixel);
+                _armRenderer.sprite = ArmSprite(armTexture, _config.PlayerArmPixelsPerUnit, _config.PlayerArmShoulderPixel);
                 _armRenderer.enabled = false;
             }
             if (_flashRenderer != null && _flashTexture != null)
@@ -121,11 +160,16 @@ namespace LastWave.Player
             _flashStart = float.NegativeInfinity;
 
             // Story 015: the polygon hitbox, traced from idle frame 1 at the base visual offset (not the death-row nudge).
-            // Since story 019 that is the body without the arm and rifle.
+            // Since story 019 that is the body without the arm and rifle. Story 020: always from the white body sheet
+            // (the colour sets share its poses), so every player has the same polygon and only the white sheet needs Read/Write;
+            // the drawn set is used only if the white sheet is missing.
             _hitbox = GetComponent<PolygonCollider2D>();
             if (_hitbox != null)
             {
-                _hitboxShape = SpriteHitbox.Get(_a.Frame(RowIdle, 0), new Vector2(0f, _config.PlayerSpriteOffsetY),
+                var hitboxSheet = _bodySheet != null
+                    ? SpriteSheet.Get(_bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit)
+                    : _a;
+                _hitboxShape = SpriteHitbox.Get(hitboxSheet.Frame(RowIdle, 0), new Vector2(0f, _config.PlayerSpriteOffsetY),
                     _renderer.transform.localScale, _config.PlayerHitboxTolerance, _config.HitboxMinPathArea);
                 _hitboxFacingRight = _movement.FacingRight;
                 _hitboxShape.ApplyTo(_hitbox, _hitboxFacingRight);
@@ -254,7 +298,7 @@ namespace LastWave.Player
                 arm.localPosition = new Vector3(shoulder.x, shoulder.y, 0f);
                 arm.localScale = new Vector3(facingRight ? 1f : -1f, 1f, 1f);
                 arm.localRotation = Quaternion.Euler(0f, 0f, PlayerShooting.ArmRotationZ(angle, facingRight));
-                _armRenderer.color = _renderer.color; // same player tint as the body (PlayerLife)
+                _armRenderer.color = _renderer.color; // same renderer colour as the body (white; story 020 has no tint)
                 _armRenderer.sortingOrder = _renderer.sortingOrder + _config.PlayerArmSortingOffset;
             }
 

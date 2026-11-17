@@ -130,7 +130,28 @@ MonoBehaviour:
   RespawnHealthFraction: 1
   BasePosition: {x: -8.5, y: 0}
   PlayerSpawnOffset: {x: 2, y: 0}
-  DownedTint: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+  DownedTint: {r: 0.7, g: 0.7, b: 0.7, a: 1}
+  Characters:
+  - DisplayName: Olive
+    ArtFolder: olive
+    BodySheet: {fileID: 2800000, guid: e968aa8f0caac744481e0ff0b547bee5, type: 3}
+    ArmTexture: {fileID: 2800000, guid: 783b3fcfefacc784985cca349266b652, type: 3}
+    SheetB: {fileID: 2800000, guid: a1f0d458a4d279c4296cbb6f7ca57584, type: 3}
+  - DisplayName: Desert
+    ArtFolder: desert
+    BodySheet: {fileID: 2800000, guid: d670e2f6f4bddc84ba1b1cf6e905d466, type: 3}
+    ArmTexture: {fileID: 2800000, guid: 64bc8027171c4794aa88a414599c3ea0, type: 3}
+    SheetB: {fileID: 2800000, guid: 9b4007ae822932c46bb0a07d846f90b7, type: 3}
+  - DisplayName: Slate
+    ArtFolder: slate
+    BodySheet: {fileID: 2800000, guid: 5a2610edce1c8f947a306d4af53d361f, type: 3}
+    ArmTexture: {fileID: 2800000, guid: 42b2ceba1068d6e4eb2604bc283ab0fd, type: 3}
+    SheetB: {fileID: 2800000, guid: 2e38bdee3f8d8d94b921324fcf6b1ef8, type: 3}
+  - DisplayName: Graphite
+    ArtFolder: graphite
+    BodySheet: {fileID: 2800000, guid: 59477e02145dc764985a7c6396e0261d, type: 3}
+    ArmTexture: {fileID: 2800000, guid: d25073cfa1c068a4699dd0c794fb6748, type: 3}
+    SheetB: {fileID: 2800000, guid: 714de08ae6503f544a8fc4d68af6658f, type: 3}
   DownedBarColor: {r: 0.95, g: 0.95, b: 0.95, a: 1}
   ReviveBarColor: {r: 0.2, g: 0.9, b: 0.85, a: 1}
   EnemyPlayerDamage: 8

@@ -56,6 +56,8 @@ namespace LastWave.EditorTools
         private const string PlayerArmTexturePath = "Assets/Art/Player/player-arms-rifle.png"; // story 019: arm + rifle, turns at the shoulder
         private const string MuzzleFlashTexturePath = "Assets/Art/Player/muzzle-flash.png";    // story 019: 2 x 2 flash frames
         private const string GunPreviewFolder = "../production/qa/evidence/story-019-separate-gun"; // story 019: offline composite check
+        private const string PlayerArtFolder = "Assets/Art/Player"; // story 020: character sets live in <ArtFolder> subfolders
+        private const string ColourPreviewFolder = "../production/qa/evidence/story-020-player-colour-sprites"; // story 020
         private const string MenuBackgroundTexturePath = "Assets/Art/UI/menu-background.png"; // story 016
         private const string MenuLogoTexturePath = "Assets/Art/UI/logo-name.png";             // story 016
         private const string ButtonTexturePath = "Assets/Art/UI/button.png";                  // story 016
@@ -98,6 +100,7 @@ namespace LastWave.EditorTools
             }
             foreach (var path in BaseTexturePaths) EnsureReadable(path);
             AssignUiArt(config);
+            AssignCharacterArt(config);
             SetGameIcon();
             var bulletPrefab = BuildBulletPrefab(material);
             var prefabList = RegisterNetworkPrefab(bulletPrefab);
@@ -169,6 +172,51 @@ namespace LastWave.EditorTools
 
         // Story 016: Player Settings > Icon > Default Icon (NamedBuildTarget.Unknown is the default for every platform),
         // which Windows uses for LastWave.exe. Saved into ProjectSettings.asset.
+        // Story 020: fills each character set's EMPTY texture references from Assets/Art/Player/<ArtFolder>/ (a reference
+        // set by hand is kept; extra sets added in the asset are filled too). A missing file is a warning, not a failure: the
+        // game falls back to the white set for that slot. The arm gets Read/Write like the white one (tight mesh, story 019);
+        // the body does not need it because the hitbox is traced from the white body. Sizes are checked against the white set.
+        private static void AssignCharacterArt(GameConfig config)
+        {
+            if (config.Characters == null) return;
+            var whiteBody = LoadTexture(PlayerBodySheetPath);
+            var whiteArm = LoadTexture(PlayerArmTexturePath);
+            var whiteB = LoadTexture(PlayerSheetBPath);
+            foreach (var set in config.Characters)
+            {
+                if (set == null || string.IsNullOrEmpty(set.ArtFolder)) continue;
+                string folder = $"{PlayerArtFolder}/{set.ArtFolder}";
+                string armPath = $"{folder}/player-arms-rifle-{set.ArtFolder}.png";
+                string readablePath = set.ArmTexture != null ? AssetDatabase.GetAssetPath(set.ArmTexture) : armPath;
+                if (AssetImporter.GetAtPath(readablePath) is TextureImporter) EnsureReadable(readablePath);
+                set.BodySheet = FillCharacterTexture(set, set.BodySheet, $"{folder}/player-body-{set.ArtFolder}.png", whiteBody);
+                set.ArmTexture = FillCharacterTexture(set, set.ArmTexture, armPath, whiteArm);
+                set.SheetB = FillCharacterTexture(set, set.SheetB, $"{folder}/player-b-{set.ArtFolder}.png", whiteB);
+            }
+            EditorUtility.SetDirty(config);
+        }
+
+        private static Texture2D FillCharacterTexture(CharacterDefinition set, Texture2D current, string path, Texture2D white)
+        {
+            var texture = current != null ? current : AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture == null)
+            {
+                Debug.LogWarning($"LastWaveSetup: character '{set.DisplayName}' has no {path}; that slot will use the white set.");
+                return null;
+            }
+            string size = $"{texture.width}x{texture.height}";
+            if (texture.width != white.width || texture.height != white.height)
+            {
+                Debug.LogWarning($"LastWaveSetup: character '{set.DisplayName}' {texture.name} is {size}, the white {white.name} is " +
+                                 $"{white.width}x{white.height}; frames, shoulder and muzzle pixels will not line up.");
+            }
+            else
+            {
+                Debug.Log($"LastWaveSetup: character '{set.DisplayName}' {texture.name} {size} (matches {white.name}).");
+            }
+            return texture;
+        }
+
         private static void SetGameIcon()
         {
             PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { LoadTexture(GameIconTexturePath) }, IconKind.Any);
@@ -319,6 +367,113 @@ namespace LastWave.EditorTools
             File.WriteAllBytes(file, outTex.EncodeToPNG());
             Object.DestroyImmediate(outTex);
             Debug.Log($"GunPreview: wrote {Path.GetFullPath(file)} (armScale {armScale:F2} body px per arm px).");
+        }
+
+        /// <summary>
+        /// Story 020 offline check: one column per picture set (white, then <see cref="GameConfig.Characters"/>); top row idle
+        /// frame 1 with the arm at aim 0 (same math as <see cref="PreviewGun"/>), bottom row the lying downed frame with
+        /// <see cref="GameConfig.DownedTint"/>. Logs each arm's opaque bounds to show the sets line up. Writes
+        /// <c>production/qa/evidence/story-020-player-colour-sprites/offline-colours.png</c>. Run after <see cref="Run"/>.
+        /// </summary>
+        [MenuItem("Last Wave/Story 020 Colour Preview")]
+        public static void PreviewColours()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
+            var sets = new System.Collections.Generic.List<(string name, Texture2D body, Texture2D arm, Texture2D b)>
+            {
+                ("White", LoadTexture(PlayerBodySheetPath), LoadTexture(PlayerArmTexturePath), LoadTexture(PlayerSheetBPath)),
+            };
+            foreach (var c in config.Characters)
+            {
+                if (c.BodySheet == null || c.ArmTexture == null || c.SheetB == null) throw new System.InvalidOperationException($"ColourPreview: set {c.DisplayName} incomplete.");
+                sets.Add((c.DisplayName, c.BodySheet, c.ArmTexture, c.SheetB));
+            }
+
+            int cell = config.PlayerSheetCellPixels, tile = 320;
+            float ppu = config.PlayerSpritePixelsPerUnit;
+            var outTex = new Texture2D(tile * sets.Count, tile * 2, TextureFormat.RGBA32, false);
+            var outPx = new Color32[outTex.width * outTex.height];
+            for (int i = 0; i < outPx.Length; i++) outPx[i] = new Color32(70, 90, 70, 255);
+            Vector2 sh = PlayerShooting.ShoulderLocal(config, true, 0);
+            float rz = PlayerShooting.ArmRotationZ(PlayerShooting.ArmLocalAngle(0f, true, config.PlayerArmClampDegrees), true) * Mathf.Deg2Rad;
+            int downCol = Mathf.Max(0, sets[0].b.width / cell - 1);
+
+            for (int s = 0; s < sets.Count; s++)
+            {
+                var set = sets[s];
+                Color32[] bodyPx = ReadPixelsForPreview(set.body), armPx = ReadPixelsForPreview(set.arm), bPx = ReadPixelsForPreview(set.b);
+                int aw = set.arm.width, ah = set.arm.height;
+                int minX = aw, maxX = -1, minY = ah, maxY = -1;
+                for (int y = 0; y < ah; y++)
+                    for (int x = 0; x < aw; x++)
+                        if (armPx[y * aw + x].a > 128) { minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x); minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y); }
+                Debug.Log($"ColourPreview: {set.name} body {set.body.width}x{set.body.height}, b {set.b.width}x{set.b.height}, " +
+                          $"arm {aw}x{ah} opaque x {minX}-{maxX}, y(top) {ah - 1 - maxY}-{ah - 1 - minY}");
+
+                for (int row = 0; row < 2; row++)
+                {
+                    int ty0 = (1 - row) * tile; // top row = idle
+                    float ox = s * tile + tile * 0.5f, oy = ty0 + tile * 0.5f;
+                    for (int y = ty0; y < ty0 + tile; y++)
+                    {
+                        for (int x = s * tile; x < (s + 1) * tile; x++)
+                        {
+                            float wx = (x + 0.5f - ox) / ppu, wy = (y + 0.5f - oy) / ppu;
+                            float bx = wx * ppu + cell * 0.5f, by = (wy - config.PlayerSpriteOffsetY) * ppu;
+                            Color32 c = outPx[y * outTex.width + x];
+                            if (bx >= 0 && bx < cell && by >= 0 && by < cell)
+                            {
+                                if (row == 0)
+                                {
+                                    int sx = (int)bx, sy = set.body.height - cell + (int)by; // body row 0, column 0
+                                    c = Over(c, bodyPx[sy * set.body.width + sx]);
+                                }
+                                else
+                                {
+                                    int sx = downCol * cell + (int)bx, sy = set.b.height - 2 * cell + (int)by; // sheet B row 1
+                                    Color32 p = bPx[sy * set.b.width + sx];
+                                    Color t = config.DownedTint;
+                                    p = new Color32((byte)(p.r * t.r), (byte)(p.g * t.g), (byte)(p.b * t.b), p.a);
+                                    c = Over(c, p);
+                                }
+                            }
+                            if (row == 0)
+                            {
+                                float dx = wx - sh.x, dy = wy - sh.y;
+                                float lx = dx * Mathf.Cos(-rz) - dy * Mathf.Sin(-rz), ly = dx * Mathf.Sin(-rz) + dy * Mathf.Cos(-rz);
+                                int ax = (int)(config.PlayerArmShoulderPixel.x + lx * config.PlayerArmPixelsPerUnit);
+                                int ayTop = (int)(config.PlayerArmShoulderPixel.y - ly * config.PlayerArmPixelsPerUnit);
+                                if (ax >= 0 && ax < aw && ayTop >= 0 && ayTop < ah) c = Over(c, armPx[(ah - 1 - ayTop) * aw + ax]);
+                            }
+                            outPx[y * outTex.width + x] = c;
+                        }
+                    }
+                }
+            }
+            outTex.SetPixels32(outPx);
+            Directory.CreateDirectory(ColourPreviewFolder);
+            string file = Path.Combine(ColourPreviewFolder, "offline-colours.png");
+            File.WriteAllBytes(file, outTex.EncodeToPNG());
+            Object.DestroyImmediate(outTex);
+            Debug.Log($"ColourPreview: wrote {Path.GetFullPath(file)} (columns: {string.Join(", ", sets.ConvertAll(x => x.name))}).");
+        }
+
+        // Pixels of any texture, readable or not: a non-readable one is copied through the GPU (editor preview only).
+        private static Color32[] ReadPixelsForPreview(Texture2D texture)
+        {
+            if (texture.isReadable) return texture.GetPixels32();
+            var rt = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var previous = RenderTexture.active;
+            Graphics.Blit(texture, rt);
+            RenderTexture.active = rt;
+            var copy = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false, false);
+            copy.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+            copy.Apply();
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(rt);
+            var pixels = copy.GetPixels32();
+            Object.DestroyImmediate(copy);
+            return pixels;
         }
 
         private static Color32 Over(Color32 under, Color32 over)

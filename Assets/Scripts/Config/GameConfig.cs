@@ -158,6 +158,43 @@ namespace LastWave.Config
     }
 
     /// <summary>
+    /// Story 020 (<c>design/game-brief.md</c> Feature 20): one "character", a full set of player pictures in one colour.
+    /// Every set must line up with the white set (same sheet sizes, cells, shoulder and muzzle pixels), so only the
+    /// pictures change. A new set is data only: add an entry to <see cref="GameConfig.Characters"/> and either drag the
+    /// three textures in, or put them at <c>Assets/Art/Player/&lt;ArtFolder&gt;/player-body-&lt;ArtFolder&gt;.png</c>
+    /// (and <c>player-arms-rifle-</c>, <c>player-b-</c>) and run <c>Last Wave &gt; Build Scenes and Prefabs</c>, which fills
+    /// empty references from those paths. Prepared for a later character-select screen (out of scope).
+    /// </summary>
+    [System.Serializable]
+    public sealed class CharacterDefinition
+    {
+        /// <summary>Name shown to players, e.g. "Olive".</summary>
+        public string DisplayName = "Olive";
+
+        /// <summary>Folder and file suffix under <c>Assets/Art/Player/</c> that LastWaveSetup fills empty references from, e.g. "olive".</summary>
+        public string ArtFolder = "olive";
+
+        /// <summary>Body sheet: idle, walk, hurt (no arms), repair/revive. Same layout as <c>player-body.png</c>.</summary>
+        public Texture2D BodySheet;
+
+        /// <summary>Arm + rifle piece that turns at the shoulder. Same layout as <c>player-arms-rifle.png</c>.</summary>
+        public Texture2D ArmTexture;
+
+        /// <summary>Sheet B: down, death, get up. Same layout as <c>player-b.png</c>.</summary>
+        public Texture2D SheetB;
+
+        /// <summary>Creates a set with no textures yet (LastWaveSetup fills them from <paramref name="artFolder"/>).</summary>
+        public CharacterDefinition(string displayName, string artFolder)
+        {
+            DisplayName = displayName;
+            ArtFolder = artFolder;
+        }
+
+        /// <summary>For Unity serialization.</summary>
+        public CharacterDefinition() { }
+    }
+
+    /// <summary>
     /// Every tunable value for the room and the placeholder player, in one asset.
     /// The asset lives at <c>Assets/Resources/GameConfig.asset</c> and is created by
     /// <c>LastWave.EditorTools.LastWaveSetup.Run</c>.
@@ -183,7 +220,11 @@ namespace LastWave.Config
         /// <summary>Distance between players' spawn points on the X axis, in world units.</summary>
         [Min(0f)] public float SpawnSpacing = 1.5f;
 
-        /// <summary>One colour per player slot. Red is kept for enemies and blue for the base (brief, Look).</summary>
+        /// <summary>
+        /// One colour per player slot. Red is kept for enemies and blue for the base (brief, Look).
+        /// Story 020: no longer tints the player sprite (each slot has its own picture set, <see cref="Characters"/>);
+        /// nothing reads it now. Kept for small per-player markers.
+        /// </summary>
         public Color[] PlayerColors =
         {
             new Color(0.25f, 0.85f, 0.35f), // green
@@ -480,13 +521,46 @@ namespace LastWave.Config
         /// <param name="ownerClientId">Network client id of the player's owner.</param>
         public Vector2 PlayerSpawnPosition(ulong ownerClientId)
         {
-            int slot = (int)(ownerClientId % (ulong)MaxPlayers);
+            int slot = PlayerSlot(ownerClientId);
             float centre = (MaxPlayers - 1) * 0.5f;
             return BasePosition + PlayerSpawnOffset + Vector2.up * ((slot - centre) * SpawnSpacing);
         }
 
-        /// <summary>Multiplied into a downed player's body colour (dims it towards grey).</summary>
-        public Color DownedTint = new Color(0.4f, 0.4f, 0.4f, 1f);
+        /// <summary>The player slot, 0 to <see cref="MaxPlayers"/> - 1: client id modulo MaxPlayers (story 009). Same on every machine.</summary>
+        /// <param name="ownerClientId">Network client id of the player's owner.</param>
+        public int PlayerSlot(ulong ownerClientId)
+        {
+            return (int)(ownerClientId % (ulong)Mathf.Max(1, MaxPlayers));
+        }
+
+        /// <summary>
+        /// Story 020: the picture set a player's slot uses (slot modulo the number of sets), or null when
+        /// <see cref="Characters"/> is empty (the white set is used then).
+        /// </summary>
+        /// <param name="ownerClientId">Network client id of the player's owner.</param>
+        public CharacterDefinition CharacterForClient(ulong ownerClientId)
+        {
+            if (Characters == null || Characters.Length == 0) return null;
+            return Characters[PlayerSlot(ownerClientId) % Characters.Length];
+        }
+
+        /// <summary>
+        /// Story 020: renderer colour multiplied onto a downed player's (coloured) sprite, a mild darken so the downed
+        /// state reads without recolouring the character. White = no change. Guessed for the designer to tune.
+        /// </summary>
+        public Color DownedTint = new Color(0.7f, 0.7f, 0.7f, 1f);
+
+        /// <summary>
+        /// Story 020: one picture set per player slot, in slot order (slot 1 Olive, 2 Desert, 3 Slate, 4 Graphite).
+        /// A slot past the end wraps around. A set with any texture missing falls back to the white set with a warning.
+        /// </summary>
+        public CharacterDefinition[] Characters =
+        {
+            new CharacterDefinition("Olive", "olive"),
+            new CharacterDefinition("Desert", "desert"),
+            new CharacterDefinition("Slate", "slate"),
+            new CharacterDefinition("Graphite", "graphite"),
+        };
 
         /// <summary>Fill colour of a downed player's bar, which shows the time left before death instead of health.</summary>
         public Color DownedBarColor = new Color(0.95f, 0.95f, 0.95f);
