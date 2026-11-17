@@ -41,6 +41,7 @@ namespace LastWave.Enemies
         private GameConfig _config;
         private Enemy _enemy;
         private SpriteSheet _sheet;
+        private SpriteRenderer _shadow;        // soft oval under the feet (visual only)
         private EnemyKind _shownKind;
         private float _walkTime;   // seconds spent walking; the walk loop keeps its phase across short stops
         private float _animSpeed = 1f; // per-kind multiplier from the look (bosses animate slower)
@@ -93,6 +94,20 @@ namespace LastWave.Enemies
             // ColliderSize.y / 2 below the enemy centre (where the old box ended). The root scale (Size) scales this too.
             float y = -look.ColliderSize.y * 0.5f - look.FeetGapPixels / look.PixelsPerUnit;
             _renderer.transform.localPosition = new Vector3(0f, y, 0f);
+
+            // Drop shadow at the feet, as wide as the kind's body (the root scale makes it bigger for bosses).
+            float shadowWidth = look.ColliderSize.x * _config.EnemyShadowWidthScale;
+            float feetY = -look.ColliderSize.y * 0.5f;
+            if (_shadow == null)
+            {
+                _shadow = DropShadow.Attach(transform, _renderer.sharedMaterial, shadowWidth, _config.ShadowHeightRatio,
+                    feetY, _config.ShadowAlpha, _config.ShadowSortingOrder);
+            }
+            else
+            {
+                _shadow.transform.localPosition = new Vector3(0f, feetY, 0f);
+                _shadow.transform.localScale = new Vector3(shadowWidth, shadowWidth * _config.ShadowHeightRatio, 1f);
+            }
 
             // Story 015: the kind's polygon, from idle frame 1, in root space (the Visual's offset included).
             if (_hitbox != null)

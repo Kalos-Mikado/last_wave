@@ -253,8 +253,9 @@ namespace LastWave.Enemies
             ColliderDistance2D gap = _collider.Distance(_baseCollider);
             if (!gap.isValid) return velocity;
 
-            float stopGap = GameConfig.Instance.EnemyStopDistance;
-            if (gap.distance > velocity.magnitude * Time.fixedDeltaTime + stopGap) return velocity; // not close yet
+            // Walk freely until the gap is down to the stop gap. (No look-ahead: stopping a step early left slow, big
+            // enemies just outside hitting range, so they stood at the base without attacking.)
+            if (gap.distance > GameConfig.Instance.EnemyStopDistance) return velocity;
 
             // The separation direction, from the base towards this enemy (sanity-checked against the centres).
             Vector2 outward = gap.normal;
@@ -273,7 +274,9 @@ namespace LastWave.Enemies
             if (_baseCollider != null && _baseCollider.enabled && _collider != null && _collider.enabled)
             {
                 ColliderDistance2D gap = _collider.Distance(_baseCollider);
-                if (gap.isValid) return gap.distance <= GameConfig.Instance.EnemyStopDistance;
+                // Reach is a little longer than the stop gap, so an enemy held at the edge (or by the crowd) always hits.
+                var config = GameConfig.Instance;
+                if (gap.isValid) return gap.distance <= Mathf.Max(config.EnemyBaseHitReach, config.EnemyStopDistance);
             }
             return toBase.magnitude <= _stopDistance;
         }
