@@ -1039,6 +1039,47 @@ namespace LastWave.Config
         /// <summary>Colour of the error/status message under the menu rows.</summary>
         public Color MenuMessageColor = new Color(1f, 0.6f, 0.6f, 1f);
 
+        // ---- Story 022: Main Menu, room page and How to Play (Network/RoomMenu). All three use the menu panel above. ----
+
+        /// <summary>Story 022: Main Menu button that opens the room page (Create / Join).</summary>
+        public string MainMenuPlayText = "Play";
+
+        /// <summary>Story 022: Main Menu button that opens the How to Play page.</summary>
+        public string MainMenuHowToPlayText = "How to Play";
+
+        /// <summary>Story 022: Main Menu button that opens the Setting screen.</summary>
+        public string MainMenuSettingText = "Setting";
+
+        /// <summary>Story 022: Main Menu button that closes the game.</summary>
+        public string MainMenuQuitText = "Quit";
+
+        /// <summary>Story 022: last button on the room and How to Play pages; returns to the Main Menu.</summary>
+        public string MenuBackText = "Back";
+
+        /// <summary>Story 022: How to Play panel width in reference pixels (wider than <see cref="MenuPanelWidth"/> so each line fits on one row). Its height follows the lines.</summary>
+        [Min(1f)] public float HowToPlayPanelWidth = 720f;
+
+        /// <summary>Story 022: title at the top of the How to Play panel.</summary>
+        public string HowToPlayTitleText = "How to Play";
+
+        /// <summary>Story 022: How to Play lines, one row each, top to bottom (a long line wraps and its row grows).</summary>
+        public string[] HowToPlayLines =
+        {
+            "WASD: move",
+            "Mouse: aim",
+            "Left click: shoot",
+            "Hold E near the base: repair it",
+            "Hold E near a downed friend: revive them",
+            "ESC: pause",
+            "Goal: survive all 10 waves and defeat the boss",
+        };
+
+        /// <summary>Story 022: font size of the How to Play title, in reference pixels.</summary>
+        [Min(8)] public int HowToPlayTitleFontSize = 38;
+
+        /// <summary>Story 022: font size of the How to Play lines, in reference pixels.</summary>
+        [Min(8)] public int HowToPlayFontSize = 28;
+
         /// <summary>
         /// Reference pixels per pixel of the trimmed button picture. Sets how big the 9-slice corners are drawn: the
         /// trimmed button is about 1230 x 300 px, so 0.3 draws it about 370 x 90 at its natural size.

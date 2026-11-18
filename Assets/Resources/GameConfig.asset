@@ -349,6 +349,23 @@ MonoBehaviour:
   MenuLabelFontSize: 22
   MenuFieldFontSize: 26
   MenuMessageColor: {r: 1, g: 0.6, b: 0.6, a: 1}
+  MainMenuPlayText: Play
+  MainMenuHowToPlayText: How to Play
+  MainMenuSettingText: Setting
+  MainMenuQuitText: Quit
+  MenuBackText: Back
+  HowToPlayPanelWidth: 720
+  HowToPlayTitleText: How to Play
+  HowToPlayLines:
+  - 'WASD: move'
+  - 'Mouse: aim'
+  - 'Left click: shoot'
+  - 'Hold E near the base: repair it'
+  - 'Hold E near a downed friend: revive them'
+  - 'ESC: pause'
+  - 'Goal: survive all 10 waves and defeat the boss'
+  HowToPlayTitleFontSize: 38
+  HowToPlayFontSize: 28
   UiButtonArtScale: 0.3
   UiPanelArtScale: 0.35
   UiButtonBorder: {x: 80, y: 80, z: 70, w: 70}

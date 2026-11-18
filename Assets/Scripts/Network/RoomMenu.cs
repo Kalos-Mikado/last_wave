@@ -12,6 +12,9 @@ namespace LastWave.Network
     /// keeps itself alive across scenes, so it is created only once).
     /// Story 016: while not in a room the menu picture covers the screen with the logo on its dark left side, and the
     /// rows sit in the art panel with art buttons (<see cref="UiSkin"/>); layout comes from <see cref="GameConfig"/>.
+    /// Story 022: outside a room the panel shows one of the local <see cref="Page"/>s (Main Menu, room page, How to Play);
+    /// the page is never networked. Being in a room resets it to the Main Menu, so leaving (or the room closing) lands
+    /// there with the service's message, while a failed Create/Join stays on the room page.
     /// </summary>
     /// <example>
     /// Add to an empty GameObject and assign <c>NetworkManager.prefab</c> to the
@@ -21,10 +24,22 @@ namespace LastWave.Network
     {
         private const int JoinCodeMaxLength = 16;
 
+        /// <summary>Story 022: the pages shown while not in a room. Story 027 adds its Campaign / Free Play page here.</summary>
+        public enum Page
+        {
+            /// <summary>Play, How to Play, Setting, Quit.</summary>
+            Main,
+            /// <summary>Create room, room code, Join room, Back.</summary>
+            Room,
+            /// <summary>Controls and goal, Back.</summary>
+            HowToPlay,
+        }
+
         [SerializeField] private RoomService _networkManagerPrefab;
 
         private RoomService _room;
         private string _codeInput = string.Empty;
+        private Page _page = Page.Main;
 
         // Panel rows: laid out twice per event, first only measured (to size the panel), then drawn.
         private bool _measuring;
@@ -37,9 +52,17 @@ namespace LastWave.Network
                 : Instantiate(_networkManagerPrefab);
         }
 
+        /// <summary>Story 022: shows <paramref name="page"/> the next time the menu is drawn outside a room.</summary>
+        /// <param name="page">The page to show.</param>
+        public void ShowPage(Page page)
+        {
+            _page = page;
+        }
+
         private void OnGUI()
         {
             var config = GameConfig.Instance;
+            if (_room.State == RoomState.InRoom) _page = Page.Main;
 
             // Story 007: in the Game scene, once in a room, the big panel shrinks to a corner strip. The Leave
             // button lives on the end screen. Outside a room (Menu state) the full panel stays, as before.
@@ -57,16 +80,20 @@ namespace LastWave.Network
                 GUI.DrawTexture(UiSkin.ToScreen(config.MenuLogoRect), UiSkin.Trimmed(config.MenuLogoTexture), ScaleMode.ScaleToFit);
             }
 
+            // Story 022: the Setting screen covers the menu; its Back returns to the page underneath (the Main Menu).
+            if (SettingsPanel.IsOpen) return;
+
             float scale = UiSkin.Scale;
             var padding = config.MenuPanelPadding * scale;
             var origin = config.MenuPanelPosition * scale;
-            _width = config.MenuPanelWidth * scale - 2f * padding.x;
+            float panelWidth = (_room.State == RoomState.Menu && _page == Page.HowToPlay ? config.HowToPlayPanelWidth : config.MenuPanelWidth) * scale;
+            _width = panelWidth - 2f * padding.x;
 
             _measuring = true;
             _cursor = 0f;
             DrawRows(config);
 
-            var panel = new Rect(origin.x, origin.y, config.MenuPanelWidth * scale, _cursor + 2f * padding.y);
+            var panel = new Rect(origin.x, origin.y, panelWidth, _cursor + 2f * padding.y);
             UiSkin.Panel(panel);
 
             _measuring = false;
@@ -81,12 +108,8 @@ namespace LastWave.Network
             switch (_room.State)
             {
                 case RoomState.Menu:
-                    if (Button(config, "Create room")) _room.CreateRoom();
-                    Label(config, "Room code:", config.UiTextColor);
-                    _codeInput = Field(config, _codeInput);
-                    if (Button(config, "Join room")) _room.JoinRoom(_codeInput);
-                    // TEMP (story 021): opens the Setting screen until story 022's Main Menu replaces this panel.
-                    if (Button(config, "Setting") && !SettingsPanel.IsOpen) SettingsPanel.Open(null);
+                    DrawPage(config);
+                    if (_page == Page.HowToPlay) return; // the room message belongs to the menu pages, not the help text
                     break;
 
                 case RoomState.Busy:
@@ -114,6 +137,44 @@ namespace LastWave.Network
             if (!string.IsNullOrEmpty(_room.Message)) Label(config, _room.Message, config.MenuMessageColor);
         }
 
+        // Story 022: the page rows while not in a room.
+        private void DrawPage(GameConfig config)
+        {
+            switch (_page)
+            {
+                case Page.Main:
+                    if (Button(config, config.MainMenuPlayText)) _page = Page.Room;
+                    if (Button(config, config.MainMenuHowToPlayText)) _page = Page.HowToPlay;
+                    if (Button(config, config.MainMenuSettingText)) SettingsPanel.Open(null);
+                    if (Button(config, config.MainMenuQuitText)) Quit();
+                    break;
+
+                case Page.Room:
+                    if (Button(config, "Create room")) _room.CreateRoom();
+                    Label(config, "Room code:", config.UiTextColor);
+                    _codeInput = Field(config, _codeInput);
+                    if (Button(config, "Join room")) _room.JoinRoom(_codeInput);
+                    if (Button(config, config.MenuBackText)) _page = Page.Main;
+                    break;
+
+                case Page.HowToPlay:
+                    Label(config, config.HowToPlayTitleText, config.UiTextColor, config.HowToPlayTitleFontSize, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    foreach (var line in config.HowToPlayLines)
+                        Label(config, line, config.UiTextColor, config.HowToPlayFontSize, TextAnchor.MiddleLeft, FontStyle.Normal);
+                    if (Button(config, config.MenuBackText)) _page = Page.Main;
+                    break;
+            }
+        }
+
+        // Quit closes the player; in the editor Application.Quit is ignored, so play mode is stopped instead.
+        private static void Quit()
+        {
+            Application.Quit();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#endif
+        }
+
         // The next row's rectangle in screen pixels, below the previous one with the configured gap.
         private Rect NextRow(GameConfig config, float height)
         {
@@ -131,9 +192,15 @@ namespace LastWave.Network
 
         private void Label(GameConfig config, string text, Color color)
         {
-            float height = Mathf.Max(config.MenuLabelHeight * UiSkin.Scale, UiSkin.LabelHeight(text, _width, config.MenuLabelFontSize));
+            Label(config, text, color, config.MenuLabelFontSize, TextAnchor.MiddleLeft, FontStyle.Normal);
+        }
+
+        private void Label(GameConfig config, string text, Color color, int fontSize, TextAnchor alignment, FontStyle fontStyle)
+        {
+            // LabelHeight measures normal weight; a bold one-line title still fits the minimum row height.
+            float height = Mathf.Max(config.MenuLabelHeight * UiSkin.Scale, UiSkin.LabelHeight(text, _width, fontSize));
             var rect = NextRow(config, height);
-            if (!_measuring) UiSkin.Label(rect, text, config.MenuLabelFontSize, TextAnchor.MiddleLeft, color);
+            if (!_measuring) UiSkin.Label(rect, text, fontSize, alignment, color, fontStyle);
         }
 
         private string Field(GameConfig config, string text)
