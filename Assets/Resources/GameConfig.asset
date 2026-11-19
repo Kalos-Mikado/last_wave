@@ -454,6 +454,28 @@ MonoBehaviour:
   SettingsOffText: Off
   SettingsApplyText: Apply
   SettingsBackText: Back
+  PauseGuiDepth: -1500
+  PauseDimColor: {r: 0, g: 0, b: 0, a: 0.5}
+  PausePanelSize: {x: 520, y: 540}
+  PausePanelPadding: {x: 48, y: 40}
+  PauseNoticeText: The game keeps running
+  PauseNoticeFontSize: 26
+  PauseNoticeHeight: 50
+  PauseButtonSize: {x: 360, y: 72}
+  PauseButtonGap: 24
+  PauseResumeText: Resume
+  PauseSettingText: Setting
+  PauseQuitText: Quit
+  PauseMainMenuText: Main Menu
+  PauseConfirmPanelSize: {x: 640, y: 320}
+  PauseConfirmFontSize: 30
+  PauseConfirmButtonSize: {x: 200, y: 72}
+  PauseConfirmButtonGap: 36
+  PauseConfirmMainMenuText: Leave the room and return to the main menu?
+  PauseConfirmQuitText: Quit the game?
+  PauseYesText: Yes
+  PauseNoText: No
+  PauseQuitLeaveTimeoutSeconds: 5
   UiSliderTrackTexture: {fileID: 0}
   UiSliderTrackBorder: {x: 16, y: 16, z: 16, w: 16}
   UiSliderTrackFillInset: {x: 9, y: 9, z: 9, w: 9}

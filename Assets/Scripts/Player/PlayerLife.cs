@@ -267,7 +267,7 @@ namespace LastWave.Player
             {
                 // Story 017: the crosshair replaces the OS cursor only while playing: Game scene, standing, no end
                 // screen and no upgrade cards open. Anywhere else the normal cursor is back.
-                SetCrosshair(_inGameScene && IsStanding && !GameOutcome.IsOver && (_upgrades == null || !_upgrades.HasOpenOffer));
+                SetCrosshair(_inGameScene && IsStanding && !GameOutcome.IsOver && (_upgrades == null || !_upgrades.HasOpenOffer) && !PauseMenu.GameplayBlocked); // story 024: the normal cursor while the pause menu is open
             }
             if (!IsSpawned || !IsServer) return;
 

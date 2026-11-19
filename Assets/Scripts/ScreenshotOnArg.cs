@@ -10,6 +10,8 @@ public class ScreenshotOnArg : MonoBehaviour
     {
         // Story 021: --open-settings shows the Setting screen over the first scene.
         if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "--open-settings") >= 0) LastWave.UI.SettingsPanel.Open(null);
+        // Story 024: --open-pause draws the pause menu over the first scene (no room needed; its buttons do nothing).
+        if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "--open-pause") >= 0) LastWave.UI.PauseMenu.ShowSample();
         // Story 022: --page play | howtoplay | select opens that menu page (default: the Main Menu).
         var page = Arg("--page");
         var menu = page == null ? null : FindAnyObjectByType<LastWave.Network.RoomMenu>();

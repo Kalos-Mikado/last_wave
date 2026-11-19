@@ -60,6 +60,7 @@ namespace LastWave.Player
             if (_life != null && !_life.IsStanding) return; // downed or dead: no shooting (story 005)
             if (_repair != null && _repair.IsInteractingLocal) return; // repairing or reviving: no shooting (stories 004, 005)
             if (GameOutcome.IsOver) return; // story 007: the end screen is up
+            if (PauseMenu.GameplayBlocked) return; // story 024: pause menu or Setting screen open
             if (UiPointerBlock.IsPointerOver(mouse.position.ReadValue())) return; // story 007: a click on an IMGUI control is not a shot
             if (Time.time < _nextLocalShotTime) return;
 

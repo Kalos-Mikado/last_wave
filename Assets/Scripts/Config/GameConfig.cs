@@ -1362,6 +1362,72 @@ namespace LastWave.Config
         /// <summary>Story 021: button that closes the panel, dropping changes not yet applied.</summary>
         public string SettingsBackText = "Back";
 
+        /// <summary>Story 024: IMGUI depth of the pause menu: lower draws on top. Above the end screen (-1000) and below the Setting screen (-3000).</summary>
+        public int PauseGuiDepth = -1500;
+
+        /// <summary>Story 024: overlay drawn over the whole screen behind the pause menu.</summary>
+        public Color PauseDimColor = new Color(0f, 0f, 0f, 0.5f);
+
+        /// <summary>Story 024: pause menu panel size in reference pixels (centred on the screen).</summary>
+        public Vector2 PausePanelSize = new Vector2(520f, 540f);
+
+        /// <summary>Story 024: space between the panel edge and its content, in reference pixels (x sides, y top and bottom).</summary>
+        public Vector2 PausePanelPadding = new Vector2(48f, 40f);
+
+        /// <summary>Story 024: the line at the top of the pause menu.</summary>
+        public string PauseNoticeText = "The game keeps running";
+
+        /// <summary>Story 024: font size of the notice line.</summary>
+        [Min(8)] public int PauseNoticeFontSize = 26;
+
+        /// <summary>Story 024: height of the notice line, in reference pixels.</summary>
+        public float PauseNoticeHeight = 50f;
+
+        /// <summary>Story 024: size of each pause menu button, in reference pixels.</summary>
+        public Vector2 PauseButtonSize = new Vector2(360f, 72f);
+
+        /// <summary>Story 024: vertical gap between pause menu items, in reference pixels.</summary>
+        public float PauseButtonGap = 24f;
+
+        /// <summary>Story 024: Resume button text.</summary>
+        public string PauseResumeText = "Resume";
+
+        /// <summary>Story 024: Setting button text.</summary>
+        public string PauseSettingText = "Setting";
+
+        /// <summary>Story 024: Quit button text.</summary>
+        public string PauseQuitText = "Quit";
+
+        /// <summary>Story 024: Main Menu button text.</summary>
+        public string PauseMainMenuText = "Main Menu";
+
+        /// <summary>Story 024: confirm dialog panel size in reference pixels (centred on the screen).</summary>
+        public Vector2 PauseConfirmPanelSize = new Vector2(640f, 320f);
+
+        /// <summary>Story 024: font size of the confirm dialog question (and the leaving text).</summary>
+        [Min(8)] public int PauseConfirmFontSize = 30;
+
+        /// <summary>Story 024: size of the Yes and No buttons, in reference pixels.</summary>
+        public Vector2 PauseConfirmButtonSize = new Vector2(200f, 72f);
+
+        /// <summary>Story 024: horizontal gap between Yes and No, in reference pixels.</summary>
+        public float PauseConfirmButtonGap = 36f;
+
+        /// <summary>Story 024: question asked before leaving for the main menu.</summary>
+        public string PauseConfirmMainMenuText = "Leave the room and return to the main menu?";
+
+        /// <summary>Story 024: question asked before quitting the game.</summary>
+        public string PauseConfirmQuitText = "Quit the game?";
+
+        /// <summary>Story 024: Yes button text of the confirm dialog.</summary>
+        public string PauseYesText = "Yes";
+
+        /// <summary>Story 024: No button text of the confirm dialog.</summary>
+        public string PauseNoText = "No";
+
+        /// <summary>Story 024: longest wait, in seconds, for leaving the room to finish before the game quits anyway.</summary>
+        [Min(0f)] public float PauseQuitLeaveTimeoutSeconds = 5f;
+
         // Story 021: optional art for the Setting controls. Leave a slot empty to use the fallback named on it; set it
         // (LastWaveSetup fills it from Art/UI/ when the file exists) and the new picture is used with no code change.
         // Every picture is trimmed to its opaque pixels at runtime, so it must be Read/Write (LastWaveSetup sets it).

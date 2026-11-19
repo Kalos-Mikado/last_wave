@@ -98,6 +98,9 @@ namespace LastWave.UI
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Boot()
         {
+            // Domain reload is off in the editor: statics survive Stop/Play, so start closed every run.
+            IsOpen = false;
+            _onClose = null;
             var config = GameConfig.Instance;
             var defaults = config.SettingsDefaultVolumes;
             MasterVolume = PlayerPrefs.GetFloat(MasterKey, defaults.x);

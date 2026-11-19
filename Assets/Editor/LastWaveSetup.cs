@@ -798,6 +798,9 @@ namespace LastWave.EditorTools
 
                 // Story 012: the upgrade cards shown during a wave rest (scene object, no NetworkObject).
                 new GameObject("UpgradeCards").AddComponent<UpgradeCards>();
+
+                // Story 024: the pause menu opened with Escape (scene object, no NetworkObject).
+                new GameObject("PauseMenu").AddComponent<PauseMenu>();
             }
 
             var path = $"{ScenesFolder}/{sceneName}.unity";

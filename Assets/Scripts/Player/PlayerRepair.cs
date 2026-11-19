@@ -119,7 +119,8 @@ namespace LastWave.Player
         private void UpdateOwner()
         {
             var keyboard = Keyboard.current;
-            bool held = keyboard != null && keyboard[GameConfig.Instance.RepairKey].isPressed;
+            // Story 024: a zero input while the pause menu or Setting screen is open (a repair in progress stops).
+            bool held = keyboard != null && !UI.PauseMenu.GameplayBlocked && keyboard[GameConfig.Instance.RepairKey].isPressed;
             bool interacting = held && HasInteractTarget;
             if (interacting == IsInteractingLocal) return;
 

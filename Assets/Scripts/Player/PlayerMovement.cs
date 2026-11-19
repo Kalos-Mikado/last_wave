@@ -112,11 +112,13 @@ namespace LastWave.Player
             }
             _body.constraints = RigidbodyConstraints2D.FreezeRotation;
 
-            UpdateAim();
+            // Story 024: the pause menu or Setting screen is open: no aim change, no input; the player just stands still.
+            bool blocked = UI.PauseMenu.GameplayBlocked;
+            if (!blocked) UpdateAim();
 
             var keyboard = Keyboard.current;
             var direction = Vector2.zero;
-            if (keyboard != null)
+            if (keyboard != null && !blocked)
             {
                 direction = new Vector2(
                     (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
