@@ -562,6 +562,81 @@ namespace LastWave.Config
             new CharacterDefinition("Graphite", "graphite"),
         };
 
+        /// <summary>Story 023: top-left of the character-select title in reference pixels (see <see cref="UiReferenceHeight"/>); the cards sit under it, to the right of the lobby panel.</summary>
+        public Vector2 CharacterSelectPosition = new Vector2(580f, 290f);
+
+        /// <summary>Story 023: size of one character card in reference pixels (same proportions as the upgrade card, whose frame it reuses).</summary>
+        public Vector2 CharacterSelectCardSize = new Vector2(180f, 276f);
+
+        /// <summary>Story 023: gap between cards, in reference pixels.</summary>
+        [Min(0f)] public float CharacterSelectCardGap = 16f;
+
+        /// <summary>Story 023: height of the title row above the cards, in reference pixels.</summary>
+        [Min(0f)] public float CharacterSelectTitleHeight = 44f;
+
+        /// <summary>Story 023: font size of the title, in reference pixels.</summary>
+        [Min(8)] public int CharacterSelectTitleFontSize = 28;
+
+        /// <summary>Story 023: font size of a card's name line, in reference pixels.</summary>
+        [Min(8)] public int CharacterSelectNameFontSize = 22;
+
+        /// <summary>Story 023: font size of a card's status line (Free, You, Player N), in reference pixels.</summary>
+        [Min(8)] public int CharacterSelectStatusFontSize = 18;
+
+        /// <summary>Story 023: title above the cards.</summary>
+        public string CharacterSelectTitleText = "Choose your character";
+
+        /// <summary>Story 023: status line of a free card.</summary>
+        public string CharacterFreeLabel = "Free";
+
+        /// <summary>Story 023: status line of the card the local player chose (gold frame).</summary>
+        public string CharacterMineLabel = "You";
+
+        /// <summary>Story 023: status line of a card another player chose; {0} is that player's slot number, from 1 (e.g. "Player 2").</summary>
+        public string CharacterTakenLabelFormat = "Player {0}";
+
+        /// <summary>Story 023: colour laid over a card another player has taken, to dim it.</summary>
+        public Color CharacterTakenDimColor = new Color(0f, 0f, 0f, 0.6f);
+
+        /// <summary>Story 023 AC 6: message on a player's panel after another player confirmed the character they had selected, until they pick again.</summary>
+        public string CharacterTakenAwayText = "Your character was taken, choose again";
+
+        /// <summary>Story 023 AC 5: status line of a card whose owner is ready; {0} is that player's slot number, from 1.</summary>
+        public string CharacterReadyLabelFormat = "Player {0} - Ready";
+
+        /// <summary>Story 023 AC 5: status line of the local player's card once they are ready.</summary>
+        public string CharacterMineReadyLabel = "You - Ready";
+
+        /// <summary>Story 023 AC 5: colour of a ready status line on a card.</summary>
+        public Color CharacterReadyColor = new Color(0.45f, 1f, 0.5f, 1f);
+
+        /// <summary>Story 023 AC 5: a non-host player's Ready button (greyed until they have picked).</summary>
+        public string LobbyReadyButtonText = "Ready";
+
+        /// <summary>Story 023 AC 5: the same button once ready, to undo it.</summary>
+        public string LobbyNotReadyButtonText = "Not ready";
+
+        /// <summary>Story 023 AC 5: shown to a ready non-host player under the button (and to a client before the selection syncs).</summary>
+        public string LobbyWaitingForHostText = "Waiting for the host to start...";
+
+        /// <summary>Story 023 AC 6: the host's hint in place of Start game while the host has not confirmed a character.</summary>
+        public string LobbyHostChooseText = "Confirm your character to start";
+
+        /// <summary>Story 023 AC 6: the host's confirm button (the host's Ready; greyed until the host has picked).</summary>
+        public string LobbyConfirmButtonText = "Confirm character";
+
+        /// <summary>Story 023 AC 6: the host's button once confirmed, to unlock the character again.</summary>
+        public string LobbyCancelConfirmButtonText = "Cancel";
+
+        /// <summary>Story 023 AC 6: a card selected by two players; {0} and {1} are the names ("You" or "Player N").</summary>
+        public string CharacterTwoNamesFormat = "{0}, {1}";
+
+        /// <summary>Story 023 AC 6: a card selected by more than two players; {0} is the count.</summary>
+        public string CharacterManyPlayersFormat = "{0} players";
+
+        /// <summary>Story 023 AC 5: the host's hint in place of Start game while other players are not ready; {0} ready, {1} other players.</summary>
+        public string LobbyWaitingForPlayersFormat = "Waiting for players: {0}/{1} ready";
+
         /// <summary>Fill colour of a downed player's bar, which shows the time left before death instead of health.</summary>
         public Color DownedBarColor = new Color(0.95f, 0.95f, 0.95f);
 

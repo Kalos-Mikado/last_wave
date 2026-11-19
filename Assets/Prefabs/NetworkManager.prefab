@@ -119,3 +119,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db94eba2b5be59e40a47e0a75e83bedf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LastWave.Network.RoomService
+  _characterSelectionPrefab: {fileID: 867333300647059929, guid: 3700b903051bc0745ae4a2d770e69d8e, type: 3}

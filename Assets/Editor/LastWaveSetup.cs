@@ -41,6 +41,7 @@ namespace LastWave.EditorTools
         private const string BulletTexturePath = "Assets/Art/bullet.png";               // story 014
         private const string BulletImpactTexturePath = "Assets/Art/bullet-impact.png";  // story 014
         private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
+        private const string CharacterSelectionPrefabPath = "Assets/Prefabs/CharacterSelection.prefab"; // story 023
         private const string EnemyNormalSheetPath = "Assets/Art/Enemies/Map1/basic.png";      // story 014
         private const string EnemyMiniBossSheetPath = "Assets/Art/Enemies/Map1/miniboss.png"; // story 014
         private const string EnemyBossSheetPath = "Assets/Art/Enemies/Map1/boss.png";         // story 014
@@ -113,7 +114,13 @@ namespace LastWave.EditorTools
             var enemyPrefab = BuildEnemyPrefab(material);
             RegisterNetworkPrefab(enemyPrefab);
             var playerPrefab = BuildPlayerPrefab(material, bulletPrefab);
-            var networkManagerPrefab = BuildNetworkManagerPrefab(playerPrefab, prefabList);
+            // Story 023: the server spawns this in the lobby (RoomService); it must be a registered network prefab.
+            var selectionObject = new GameObject("CharacterSelection");
+            selectionObject.AddComponent<NetworkObject>();
+            selectionObject.AddComponent<CharacterSelection>();
+            var selectionPrefab = SaveNetworkPrefab(selectionObject, CharacterSelectionPrefabPath);
+            RegisterNetworkPrefab(selectionPrefab);
+            var networkManagerPrefab = BuildNetworkManagerPrefab(playerPrefab, prefabList, selectionPrefab.GetComponent<CharacterSelection>());
 
             var menuPath = BuildScene(config.MenuSceneName, networkManagerPrefab, null, null);
             var gamePath = BuildScene(config.GameSceneName, networkManagerPrefab, enemyPrefab.GetComponent<Enemy>(), material);
@@ -127,6 +134,7 @@ namespace LastWave.EditorTools
             AssertPrefabHash(PlayerPrefabPath);
             AssertPrefabHash(BulletPrefabPath);
             AssertPrefabHash(EnemyPrefabPath);
+            AssertPrefabHash(CharacterSelectionPrefabPath);
             Debug.Log($"LastWaveSetup: built {BulletPrefabPath}, {EnemyPrefabPath}, {PlayerPrefabPath}, {NetworkManagerPrefabPath}, {menuPath}, {gamePath}.");
         }
 
@@ -678,7 +686,7 @@ namespace LastWave.EditorTools
             return list;
         }
 
-        private static GameObject BuildNetworkManagerPrefab(GameObject playerPrefab, NetworkPrefabsList prefabList)
+        private static GameObject BuildNetworkManagerPrefab(GameObject playerPrefab, NetworkPrefabsList prefabList, CharacterSelection selectionPrefab)
         {
             var root = new GameObject("NetworkManager");
             var transport = root.AddComponent<UnityTransport>();
@@ -690,7 +698,10 @@ namespace LastWave.EditorTools
                 EnableSceneManagement = true,
             };
             networkManager.NetworkConfig.Prefabs.NetworkPrefabsLists.Add(prefabList);
-            root.AddComponent<RoomService>();
+            var roomService = root.AddComponent<RoomService>();
+            var roomSerialized = new SerializedObject(roomService);
+            roomSerialized.FindProperty("_characterSelectionPrefab").objectReferenceValue = selectionPrefab;
+            roomSerialized.ApplyModifiedPropertiesWithoutUndo();
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, NetworkManagerPrefabPath);
             Object.DestroyImmediate(root);
             return prefab;

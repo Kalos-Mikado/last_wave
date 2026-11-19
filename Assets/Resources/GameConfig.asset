@@ -152,6 +152,31 @@ MonoBehaviour:
     BodySheet: {fileID: 2800000, guid: 59477e02145dc764985a7c6396e0261d, type: 3}
     ArmTexture: {fileID: 2800000, guid: d25073cfa1c068a4699dd0c794fb6748, type: 3}
     SheetB: {fileID: 2800000, guid: 714de08ae6503f544a8fc4d68af6658f, type: 3}
+  CharacterSelectPosition: {x: 580, y: 290}
+  CharacterSelectCardSize: {x: 180, y: 276}
+  CharacterSelectCardGap: 16
+  CharacterSelectTitleHeight: 44
+  CharacterSelectTitleFontSize: 28
+  CharacterSelectNameFontSize: 22
+  CharacterSelectStatusFontSize: 18
+  CharacterSelectTitleText: Choose your character
+  CharacterFreeLabel: Free
+  CharacterMineLabel: You
+  CharacterTakenLabelFormat: Player {0}
+  CharacterTakenDimColor: {r: 0, g: 0, b: 0, a: 0.6}
+  CharacterTakenAwayText: Your character was taken, choose again
+  CharacterReadyLabelFormat: Player {0} - Ready
+  CharacterMineReadyLabel: You - Ready
+  CharacterReadyColor: {r: 0.45, g: 1, b: 0.5, a: 1}
+  LobbyReadyButtonText: Ready
+  LobbyNotReadyButtonText: Not ready
+  LobbyWaitingForHostText: Waiting for the host to start...
+  LobbyHostChooseText: Confirm your character to start
+  LobbyConfirmButtonText: Confirm character
+  LobbyCancelConfirmButtonText: Cancel
+  CharacterTwoNamesFormat: '{0}, {1}'
+  CharacterManyPlayersFormat: '{0} players'
+  LobbyWaitingForPlayersFormat: 'Waiting for players: {0}/{1} ready'
   DownedBarColor: {r: 0.95, g: 0.95, b: 0.95, a: 1}
   ReviveBarColor: {r: 0.2, g: 0.9, b: 0.85, a: 1}
   EnemyPlayerDamage: 8

@@ -98,7 +98,14 @@ namespace LastWave.Player
             sheetB = _sheetB;
             armTexture = _armTexture;
             CharacterName = "White";
-            var set = _config.CharacterForClient(OwnerClientId);
+            // Story 023: the character this owner picked in the lobby (synced; kept across Restart). Without a selection
+            // object (no session started through the room) or without a pick, the story 020 slot formula is used.
+            CharacterDefinition set;
+            var selection = LastWave.Network.CharacterSelection.Instance;
+            if (selection != null && _config.Characters != null && _config.Characters.Length > 0)
+                set = _config.Characters[selection.ResolvedIndexFor(OwnerClientId, _config)];
+            else
+                set = _config.CharacterForClient(OwnerClientId);
             if (set == null) return;
 
             string missing = null;
@@ -130,10 +137,10 @@ namespace LastWave.Player
             _repair = GetComponent<PlayerRepair>();
             _movement = GetComponent<PlayerMovement>();
 
-            // Story 020: this player's picture set by slot (owner client id, known on every machine, so nothing new syncs).
-            ResolveCharacter(out var bodySheet, out var sheetB, out var armTexture);
-            _a = SpriteSheet.Get(bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
-            _b = SpriteSheet.Get(sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            // Story 023: the picture set is the owner's pick (CharacterSelection); rebuilt whenever the picks change.
+            ApplyCharacter();
+            LastWave.Network.CharacterSelection.PicksChanged -= ApplyCharacter;
+            LastWave.Network.CharacterSelection.PicksChanged += ApplyCharacter;
             // The sprite pivot is the foot; lower the visual so the feet sit half a unit below the root (the old box's bottom).
             _renderer.transform.localPosition = new Vector3(0f, _config.PlayerSpriteOffsetY, 0f);
             if (_shadow == null)
@@ -142,12 +149,7 @@ namespace LastWave.Player
                     _config.ShadowHeightRatio, _config.PlayerShadowFeetY, _config.ShadowAlpha, _config.ShadowSortingOrder);
             }
 
-            // Story 019: the arm pivots at its shoulder pixel; the flash's pivot is the middle of its cell's left edge.
-            if (_armRenderer != null && armTexture != null)
-            {
-                _armRenderer.sprite = ArmSprite(armTexture, _config.PlayerArmPixelsPerUnit, _config.PlayerArmShoulderPixel);
-                _armRenderer.enabled = false;
-            }
+            // Story 019: the flash's pivot is the middle of its cell's left edge.
             if (_flashRenderer != null && _flashTexture != null)
             {
                 _flash = SpriteSheet.GetGrid(_flashTexture, FlashColumns, FlashRows, _config.PlayerMuzzleFlashPixelsPerUnit, new Vector2(0f, 0.5f));
@@ -186,9 +188,29 @@ namespace LastWave.Player
             _shooting.OnShotFired += HandleShotFired;
         }
 
+        // Story 023: resolves the owner's character and (re)builds the body and B sheets and the arm sprite from it.
+        // Called at spawn and on CharacterSelection.PicksChanged (the player object usually spawns in the lobby before
+        // anyone picked). The hitbox is not touched: it is always traced from the white body (story 020).
+        private void ApplyCharacter()
+        {
+            if (_config == null) return;
+            ResolveCharacter(out var bodySheet, out var sheetB, out var armTexture);
+            _a = SpriteSheet.Get(bodySheet, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            _b = SpriteSheet.Get(sheetB, _config.PlayerSheetCellPixels, _config.PlayerSpritePixelsPerUnit);
+            // Story 019: the arm pivots at its shoulder pixel. Update shows or hides it each frame.
+            if (_armRenderer != null && armTexture != null)
+            {
+                bool shown = _armRenderer.enabled;
+                _armRenderer.sprite = ArmSprite(armTexture, _config.PlayerArmPixelsPerUnit, _config.PlayerArmShoulderPixel);
+                _armRenderer.enabled = shown && IsSpawned;
+            }
+            if (IsSpawned && _clip != Clip.None) _renderer.sprite = Pick(_clip, Time.time);
+        }
+
         /// <summary>Unsubscribes from the events.</summary>
         public override void OnNetworkDespawn()
         {
+            LastWave.Network.CharacterSelection.PicksChanged -= ApplyCharacter;
             if (_life != null) _life.OnStateChanged -= HandleStateChanged;
             if (_health != null) _health.OnHealthChanged -= HandleHealthChanged;
             if (_shooting != null) _shooting.OnShotFired -= HandleShotFired;
@@ -372,6 +394,13 @@ namespace LastWave.Player
                 case Clip.GetUp: return _b.Frame(RowGetUp, Once(now - _getUpStart, _config.PlayerDownFps, _b.Columns));
                 default: return _a.Frame(RowIdle, Loop(now - _clipStart, _config.PlayerIdleFps, _a.Columns));
             }
+        }
+
+        /// <summary>Story 023: drops the selection listener if the object is destroyed without a despawn.</summary>
+        public override void OnDestroy()
+        {
+            LastWave.Network.CharacterSelection.PicksChanged -= ApplyCharacter;
+            base.OnDestroy();
         }
 
         // Frame index helpers: pure arithmetic, no allocation.

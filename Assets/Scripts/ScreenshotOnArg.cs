@@ -10,11 +10,13 @@ public class ScreenshotOnArg : MonoBehaviour
     {
         // Story 021: --open-settings shows the Setting screen over the first scene.
         if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "--open-settings") >= 0) LastWave.UI.SettingsPanel.Open(null);
-        // Story 022: --page play | howtoplay opens that menu page (default: the Main Menu).
+        // Story 022: --page play | howtoplay | select opens that menu page (default: the Main Menu).
         var page = Arg("--page");
         var menu = page == null ? null : FindAnyObjectByType<LastWave.Network.RoomMenu>();
         if (menu != null && page == "play") menu.ShowPage(LastWave.Network.RoomMenu.Page.Room);
         if (menu != null && page == "howtoplay") menu.ShowPage(LastWave.Network.RoomMenu.Page.HowToPlay);
+        // Story 023: --page select draws the character cards with fake picks (layout only, no room).
+        if (menu != null && page == "select") menu.ShowSampleSelect();
         if (Arg("--screenshot") == null) return;
         var go = new GameObject(nameof(ScreenshotOnArg));
         DontDestroyOnLoad(go);

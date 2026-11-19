@@ -43,6 +43,8 @@ namespace LastWave.Network
         private const string LinkHint =
             "Likely cause: link the project to a Unity project in Project Settings > Services.";
 
+        [SerializeField] private CharacterSelection _characterSelectionPrefab; // story 023: spawned by the server at start
+
         private NetworkManager _networkManager;
         private ISession _session;
         private bool _leaving;
@@ -66,11 +68,22 @@ namespace LastWave.Network
         {
             _networkManager = GetComponent<NetworkManager>();
             _networkManager.OnClientStopped += HandleClientStopped;
+            _networkManager.OnServerStarted += HandleServerStarted;
         }
 
         private void OnDestroy()
         {
             _networkManager.OnClientStopped -= HandleClientStopped;
+            _networkManager.OnServerStarted -= HandleServerStarted;
+        }
+
+        // Story 023: the character selection is spawned as soon as the server (host) starts, so it exists in the lobby.
+        // Dynamically spawned objects move to DontDestroyOnLoad on the scene change, so it survives into the Game scene.
+        private void HandleServerStarted()
+        {
+            if (_characterSelectionPrefab == null || CharacterSelection.Instance != null) return;
+            var selection = Instantiate(_characterSelectionPrefab);
+            selection.GetComponent<NetworkObject>().Spawn(false);
         }
 
         /// <summary>
@@ -140,6 +153,8 @@ namespace LastWave.Network
         public void StartGame()
         {
             if (!IsHost) return;
+            // Story 023: anyone who has not chosen (the gated Start should prevent it) gets the first free character.
+            if (CharacterSelection.Instance != null) CharacterSelection.Instance.ServerAssignMissing();
             _networkManager.SceneManager.LoadScene(GameConfig.Instance.GameSceneName, LoadSceneMode.Single);
         }
 
